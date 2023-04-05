@@ -18,7 +18,7 @@ const svgTags = ['path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polyg
 
 const svgStyleTags = ['fill', 'stroke'] as const;
 
-type SSMap = Map<string, string>
+type SSMap = Map<string, string>;
 
 const svgColorMap = new Map<string, string>([
 
@@ -170,11 +170,14 @@ export class Processors {
 
     private makeDynamicSvg(svgSource: string, conversionParams: SSMap) {
         // replace colors with dynamic colors
+        const svgStart = svgSource.indexOf('<svg') + 4;
+        console.error(svgStart + '                         ---- ');
+        let currentIndex;
 
         for (const svgTag of svgTags) {
-            let currentIndex = svgSource.indexOf('<svg') + 4;
+            currentIndex = svgStart;
             while (true) {
-                currentIndex = svgSource.indexOf(svgTag, currentIndex) + svgTag.length + 1;
+                currentIndex = svgSource.indexOf(`<${svgTag}`, currentIndex) + svgTag.length;
 
                 if (currentIndex == -1) {
                     break;
@@ -187,10 +190,10 @@ export class Processors {
                 console.error(endIndex);
                 console.error(styleSubstring);
 
-                let newStyle = 'style="';
+                let newStyle = ' style="';
 
                 for (const svgStyleTag of svgStyleTags) {
-                    const tagStyle = styleSubstring.match(`/${svgStyleTag}=".*?"/`);
+                    const tagStyle = styleSubstring.match(`${svgStyleTag}=".*?"`);
                     const tagColor = tagStyle?.length ? tagStyle[0].replace(/.*=|"/, '') : 'black';
                     const remappedColor = svgColorMap.get(tagColor) || tagColor;
                     console.error(`${tagStyle}, ${tagColor}, ${remappedColor}`);
@@ -255,6 +258,9 @@ export class Processors {
 
         if (type === 'refgraph') {
             const graphData = this.referenceGraphMap.get(source.trim());
+            if (!graphData) {
+                throw Error(`Graph with name ${source} does not exist`);
+            }
             return {
                 svgData: this.readFileString(graphData.sourcePath),
                 extras: graphData.extras

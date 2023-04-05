@@ -30,26 +30,6 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
-var __async = (__this, __arguments, generator) => {
-  return new Promise((resolve, reject) => {
-    var fulfilled = (value) => {
-      try {
-        step(generator.next(value));
-      } catch (e) {
-        reject(e);
-      }
-    };
-    var rejected = (value) => {
-      try {
-        step(generator.throw(value));
-      } catch (e) {
-        reject(e);
-      }
-    };
-    var step = (x) => x.done ? resolve(x.value) : Promise.resolve(x.value).then(fulfilled, rejected);
-    step((generator = generator.apply(__this, __arguments)).next());
-  });
-};
 
 // src/main.ts
 var main_exports = {};
@@ -80,10 +60,10 @@ var GraphvizSettingsTab = class extends import_obsidian.PluginSettingTab {
     for (setting in DEFAULT_SETTINGS) {
       new import_obsidian.Setting(containerEl).setName(setting).addText(
         (text) => text.setPlaceholder(DEFAULT_SETTINGS[setting]).setValue(this.plugin.settings[setting]).onChange(
-          (value) => __async(this, null, function* () {
+          async (value) => {
             this.plugin.settings[setting] = value;
-            yield this.plugin.saveSettings();
-          })
+            await this.plugin.saveSettings();
+          }
         )
       );
     }
@@ -211,17 +191,15 @@ var Processors = class {
       });
     });
   }
-  writeRenderedFile(inputFile, outputFile, type, conversionParams) {
-    return __async(this, null, function* () {
-      const [cmdPath, params] = this.getRendererParameters(type, inputFile, outputFile);
-      yield this.spawnProcess(cmdPath, params);
-      if (type === "latex") {
-        yield this.spawnProcess(this.pluginSettings.pdf2svgPath, [`${inputFile}.pdf`, outputFile]);
-      }
-      const svg = this.makeDynamicSvg(fs.readFileSync(outputFile).toString(), conversionParams);
-      fs.writeFileSync(outputFile, svg.svgData);
-      return svg;
-    });
+  async writeRenderedFile(inputFile, outputFile, type, conversionParams) {
+    const [cmdPath, params] = this.getRendererParameters(type, inputFile, outputFile);
+    await this.spawnProcess(cmdPath, params);
+    if (type === "latex") {
+      await this.spawnProcess(this.pluginSettings.pdf2svgPath, [`${inputFile}.pdf`, outputFile]);
+    }
+    const svg = this.makeDynamicSvg(fs.readFileSync(outputFile).toString(), conversionParams);
+    fs.writeFileSync(outputFile, svg.svgData);
+    return svg;
   }
   readFileString(path2) {
     return fs.readFileSync(path2).toString();
@@ -233,10 +211,13 @@ var Processors = class {
     return str.slice(0, start) + newSubStr + str.slice(start);
   }
   makeDynamicSvg(svgSource, conversionParams) {
+    const svgStart = svgSource.indexOf("<svg") + 4;
+    console.error(svgStart + "                         ---- ");
+    let currentIndex;
     for (const svgTag of svgTags) {
-      let currentIndex = svgSource.indexOf("<svg") + 4;
+      currentIndex = svgStart;
       while (true) {
-        currentIndex = svgSource.indexOf(svgTag, currentIndex) + svgTag.length + 1;
+        currentIndex = svgSource.indexOf(`<${svgTag}`, currentIndex) + svgTag.length;
         if (currentIndex == -1) {
           break;
         }
@@ -245,15 +226,15 @@ var Processors = class {
         console.error(currentIndex);
         console.error(endIndex);
         console.error(styleSubstring);
-        let newStyle = 'style="';
+        let newStyle = ' style="';
         for (const svgStyleTag of svgStyleTags) {
-          const tagStyle = styleSubstring.match(`/${svgStyleTag}=".*?"/`);
+          const tagStyle = styleSubstring.match(`${svgStyleTag}=".*?"`);
           const tagColor = (tagStyle == null ? void 0 : tagStyle.length) ? tagStyle[0].replace(/.*=|"/, "") : "black";
           const remappedColor = svgColorMap.get(tagColor) || tagColor;
           console.error(`${tagStyle}, ${tagColor}, ${remappedColor}`);
           newStyle += `${svgStyleTag}:var(${remappedColor});`;
         }
-        newStyle += '"';
+        newStyle += '" ';
         svgSource = this.insertStr(svgSource, currentIndex, newStyle);
         break;
       }
@@ -293,83 +274,76 @@ var Processors = class {
       extras: conversionParams
     };
   }
-  renderImage(type, source) {
-    return __async(this, null, function* () {
-      if (type === "refgraph") {
-        const graphData2 = this.referenceGraphMap.get(source.trim());
-        return {
-          svgData: this.readFileString(graphData2.sourcePath),
-          extras: graphData2.extras
-        };
+  async renderImage(type, source) {
+    if (type === "refgraph") {
+      const graphData2 = this.referenceGraphMap.get(source.trim());
+      if (!graphData2) {
+        throw Error(`Graph with name ${source} does not exist`);
       }
-      const temp_dir = this.getTempDir(type);
-      const graph_hash = md5(source);
-      const inputFile = path.join(temp_dir, graph_hash);
-      const outputFile = `${inputFile}.svg`;
-      if (!fs.existsSync(temp_dir)) {
-        fs.mkdirSync(temp_dir);
-      }
-      const graphData = this.parseFrontMatter(source, outputFile);
-      if (type === "dynamic-svg") {
-        return this.makeDynamicSvg((yield this.vaultAdapter.read(graphData.cleanedSource)).toString(), graphData.extras);
-      }
-      if (!fs.existsSync(inputFile)) {
-        fs.writeFileSync(inputFile, graphData.cleanedSource);
-      } else if (fs.existsSync(outputFile)) {
-        return {
-          svgData: this.readFileString(outputFile),
-          extras: graphData.extras
-        };
-      }
-      return this.writeRenderedFile(inputFile, outputFile, type, graphData.extras);
-    });
+      return {
+        svgData: this.readFileString(graphData2.sourcePath),
+        extras: graphData2.extras
+      };
+    }
+    const temp_dir = this.getTempDir(type);
+    const graph_hash = md5(source);
+    const inputFile = path.join(temp_dir, graph_hash);
+    const outputFile = `${inputFile}.svg`;
+    if (!fs.existsSync(temp_dir)) {
+      fs.mkdirSync(temp_dir);
+    }
+    const graphData = this.parseFrontMatter(source, outputFile);
+    if (type === "dynamic-svg") {
+      return this.makeDynamicSvg((await this.vaultAdapter.read(graphData.cleanedSource)).toString(), graphData.extras);
+    }
+    if (!fs.existsSync(inputFile)) {
+      fs.writeFileSync(inputFile, graphData.cleanedSource);
+    } else if (fs.existsSync(outputFile)) {
+      return {
+        svgData: this.readFileString(outputFile),
+        extras: graphData.extras
+      };
+    }
+    return this.writeRenderedFile(inputFile, outputFile, type, graphData.extras);
   }
-  imageProcessor(source, el, _, type) {
-    return __async(this, null, function* () {
-      try {
-        console.debug(`Call image processor for ${type}`);
-        const image = yield this.renderImage(type, source.trim());
-        el.classList.add(image.extras.get("inverted") ? "multi-graph-inverted" : "multi-graph-normal");
-        el.innerHTML = image.svgData;
-      } catch (errMessage) {
-        console.error("convert to image error: " + errMessage);
-        const pre = document.createElement("pre");
-        const code = document.createElement("code");
-        code.setText(errMessage);
-        pre.appendChild(code);
-        el.appendChild(pre);
-      }
-    });
+  async imageProcessor(source, el, _, type) {
+    try {
+      console.debug(`Call image processor for ${type}`);
+      const image = await this.renderImage(type, source.trim());
+      el.classList.add(image.extras.get("inverted") ? "multi-graph-inverted" : "multi-graph-normal");
+      el.innerHTML = image.svgData;
+    } catch (errMessage) {
+      console.error("convert to image error: " + errMessage);
+      const pre = document.createElement("pre");
+      const code = document.createElement("code");
+      code.setText(errMessage);
+      pre.appendChild(code);
+      el.appendChild(pre);
+    }
   }
 };
 
 // src/main.ts
 var GraphvizPlugin = class extends import_obsidian2.Plugin {
-  onload() {
-    return __async(this, null, function* () {
-      console.debug("Load universal renderer plugin");
-      yield this.loadSettings();
-      this.addSettingTab(new GraphvizSettingsTab(this));
-      const processors = new Processors(this);
-      this.app.workspace.onLayoutReady(() => {
-        for (const type of renderTypes) {
-          this.registerMarkdownCodeBlockProcessor(type, processors.getProcessorForType(type).bind(processors));
-        }
-      });
+  async onload() {
+    console.debug("Load universal renderer plugin");
+    await this.loadSettings();
+    this.addSettingTab(new GraphvizSettingsTab(this));
+    const processors = new Processors(this);
+    this.app.workspace.onLayoutReady(() => {
+      for (const type of renderTypes) {
+        this.registerMarkdownCodeBlockProcessor(type, processors.getProcessorForType(type).bind(processors));
+      }
     });
   }
   onunload() {
     console.debug("Unload universal renderer plugin");
   }
-  loadSettings() {
-    return __async(this, null, function* () {
-      this.settings = Object.assign({}, DEFAULT_SETTINGS, yield this.loadData());
-      return Promise.resolve();
-    });
+  async loadSettings() {
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    return Promise.resolve();
   }
-  saveSettings() {
-    return __async(this, null, function* () {
-      yield this.saveData(this.settings);
-    });
+  async saveSettings() {
+    await this.saveData(this.settings);
   }
 };
