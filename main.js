@@ -99,6 +99,7 @@ var crypto = __toESM(require("crypto"));
 var md5 = (contents) => crypto.createHash("md5").update(contents).digest("hex");
 var renderTypes = ["dot", "latex", "ditaa", "blockdiag", "refgraph", "dynamic-svg"];
 var svgTags = ["path", "rect", "circle", "ellipse", "line", "polyline", "polygon"];
+var svgStyleTags = ["fill", "stroke"];
 var svgColorMap = /* @__PURE__ */ new Map([
   // dark colors
   ["darkred", "--g-color-dark-red"],
@@ -228,22 +229,34 @@ var Processors = class {
   getTempDir(type) {
     return path.join(os.tmpdir(), `obsidian-${type}`);
   }
+  insertStr(str, start, newSubStr) {
+    return str.slice(0, start) + newSubStr + str.slice(start);
+  }
   makeDynamicSvg(svgSource, conversionParams) {
     for (const svgTag of svgTags) {
-      let currentIndex = 0;
+      let currentIndex = svgSource.indexOf("<svg") + 4;
       while (true) {
-        currentIndex = svgSource.indexOf(svgTag, currentIndex);
-        const endIndex = svgSource.indexOf(">", currentIndex);
-        const styleSubsrting = svgSource.substring(currentIndex, endIndex);
-        const fillstyle = styleSubsrting.match(/fill=".*?"/);
-        const strokestyle = styleSubsrting.match(/stroke=".*?"/);
-        if (currentIndex != -1) {
+        currentIndex = svgSource.indexOf(svgTag, currentIndex) + svgTag.length + 1;
+        if (currentIndex == -1) {
           break;
         }
+        const endIndex = svgSource.indexOf(">", currentIndex);
+        const styleSubstring = svgSource.substring(currentIndex, endIndex);
+        console.error(currentIndex);
+        console.error(endIndex);
+        console.error(styleSubstring);
+        let newStyle = 'style="';
+        for (const svgStyleTag of svgStyleTags) {
+          const tagStyle = styleSubstring.match(`/${svgStyleTag}=".*?"/`);
+          const tagColor = (tagStyle == null ? void 0 : tagStyle.length) ? tagStyle[0].replace(/.*=|"/, "") : "black";
+          const remappedColor = svgColorMap.get(tagColor) || tagColor;
+          console.error(`${tagStyle}, ${tagColor}, ${remappedColor}`);
+          newStyle += `${svgStyleTag}:var(${remappedColor});`;
+        }
+        newStyle += '"';
+        svgSource = this.insertStr(svgSource, currentIndex, newStyle);
+        break;
       }
-    }
-    for (const [color, target_var] of svgColorMap) {
-      svgSource = svgSource.replaceAll(`"${color}"`, `"var(${target_var})"`);
     }
     return {
       svgData: svgSource,
@@ -255,7 +268,7 @@ var Processors = class {
     let referenceName = "";
     if (source.startsWith("---")) {
       const lastIndex = source.indexOf("---", 3);
-      const frontMatter = source.substring(source.indexOf("---") + 3, lastIndex);
+      const frontMatter = source.substring(3, lastIndex);
       const parameters = frontMatter.trim().split("\n");
       for (const parameter of parameters) {
         const parameter_split = parameter.split(":");

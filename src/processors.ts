@@ -16,7 +16,7 @@ type RenderType = typeof renderTypes[number];
 
 const svgTags = ['path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon'] as const;
 
-const svgStyles = ['fill', 'stroke'] as const;
+const svgStyleTags = ['fill', 'stroke'] as const;
 
 type SSMap = Map<string, string>
 
@@ -164,28 +164,45 @@ export class Processors {
         return path.join(os.tmpdir(), `obsidian-${type}`);
     }
 
+    private insertStr(str: string, start: number, newSubStr: string) {
+        return str.slice(0, start) + newSubStr + str.slice(start);
+    }
+
     private makeDynamicSvg(svgSource: string, conversionParams: SSMap) {
         // replace colors with dynamic colors
 
         for (const svgTag of svgTags) {
-            let currentIndex = 0;
+            let currentIndex = svgSource.indexOf('<svg') + 4;
             while (true) {
-                currentIndex = svgSource.indexOf(svgTag, currentIndex);
-                const endIndex = svgSource.indexOf('>', currentIndex);
+                currentIndex = svgSource.indexOf(svgTag, currentIndex) + svgTag.length + 1;
 
-                const styleSubsrting = svgSource.substring(currentIndex, endIndex);
-
-                const fillstyle = styleSubsrting.match(/fill=".*?"/);
-                const strokestyle = styleSubsrting.match(/stroke=".*?"/);
-
-                if(currentIndex != -1) {
+                if (currentIndex == -1) {
                     break;
                 }
-            } 
-        }
-// color modes: map, map_invert, keep
-        for (const [color, target_var] of svgColorMap) {
-            svgSource = svgSource.replaceAll(`"${color}"`, `"var(${target_var})"`);
+
+                const endIndex = svgSource.indexOf('>', currentIndex);
+                const styleSubstring = svgSource.substring(currentIndex, endIndex);
+
+                console.error(currentIndex);
+                console.error(endIndex);
+                console.error(styleSubstring);
+
+                let newStyle = 'style="';
+
+                for (const svgStyleTag of svgStyleTags) {
+                    const tagStyle = styleSubstring.match(`/${svgStyleTag}=".*?"/`);
+                    const tagColor = tagStyle?.length ? tagStyle[0].replace(/.*=|"/, '') : 'black';
+                    const remappedColor = svgColorMap.get(tagColor) || tagColor;
+                    console.error(`${tagStyle}, ${tagColor}, ${remappedColor}`);
+                    newStyle += `${svgStyleTag}:var(${remappedColor});`;
+                }
+
+                newStyle += '" ';
+
+                svgSource = this.insertStr(svgSource, currentIndex, newStyle);
+
+                break;
+            }
         }
 
         // strip font-family to inherit from note's font-family
@@ -203,7 +220,7 @@ export class Processors {
         if (source.startsWith('---')) {
 
             const lastIndex = source.indexOf('---', 3);
-            const frontMatter = source.substring(source.indexOf('---') + 3, lastIndex);
+            const frontMatter = source.substring(3, lastIndex);
             const parameters = frontMatter.trim().split('\n');
 
             for (const parameter of parameters) {
