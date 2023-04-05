@@ -212,6 +212,11 @@ export class Processors {
 
     private makeDynamicSvg(svgSource: string, conversionParams: SSMap) {
         // replace colors with dynamic colors
+
+        const width = conversionParams.get('width');
+        if(width) {
+            svgSource = svgSource.replace('<svg', `<svg style="width: ${width}" `);
+        }
         const svgStart = svgSource.indexOf('<svg') + 4;
         let currentIndex;
 
@@ -266,6 +271,9 @@ export class Processors {
                                 break;
                             case 'invert-all':
                                 rcolor.color = invertColor(rcolor.color);
+                                break;
+                            case 'skip':
+                                continue;
                         }
 
                         newStyle += `${svgStyleTag}:var(${rcolor.color});`;
@@ -365,7 +373,7 @@ export class Processors {
 
         if (type === 'dynamic-svg') {
             const resolvedLink = this.metadataCache.getFirstLinkpathDest(graphData.cleanedSource.slice(2, -2), '')?.path;
-            if(!resolvedLink) {
+            if (!resolvedLink) {
                 throw Error(`Invalid link: ${graphData.cleanedSource}`);
             }
             return this.makeDynamicSvg((await this.vaultAdapter.read(resolvedLink)).toString(), graphData.extras);

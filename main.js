@@ -258,6 +258,10 @@ var Processors = class {
     return svg;
   }
   makeDynamicSvg(svgSource, conversionParams) {
+    const width = conversionParams.get("width");
+    if (width) {
+      svgSource = svgSource.replace("<svg", `<svg style="width: ${width}" `);
+    }
     const svgStart = svgSource.indexOf("<svg") + 4;
     let currentIndex;
     for (const svgTag of svgTags) {
@@ -301,6 +305,9 @@ var Processors = class {
                 break;
               case "invert-all":
                 rcolor.color = invertColor(rcolor.color);
+                break;
+              case "skip":
+                continue;
             }
             newStyle += `${svgStyleTag}:var(${rcolor.color});`;
           } else {
