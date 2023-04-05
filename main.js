@@ -208,6 +208,7 @@ var Processors = class {
     this.referenceGraphMap = /* @__PURE__ */ new Map();
     this.pluginSettings = plugin.settings;
     this.vaultAdapter = plugin.app.vault.adapter;
+    this.metadataCache = plugin.app.metadataCache;
   }
   getRendererParameters(type, sourceFile, outputFile) {
     switch (type) {
@@ -361,6 +362,7 @@ var Processors = class {
     };
   }
   async renderImage(type, source) {
+    var _a;
     if (type === "refgraph") {
       const graphData2 = this.referenceGraphMap.get(source.trim());
       if (!graphData2) {
@@ -380,7 +382,11 @@ var Processors = class {
     }
     const graphData = this.parseFrontMatter(source, outputFile);
     if (type === "dynamic-svg") {
-      return this.makeDynamicSvg((await this.vaultAdapter.read(graphData.cleanedSource)).toString(), graphData.extras);
+      const resolvedLink = (_a = this.metadataCache.getFirstLinkpathDest(graphData.cleanedSource.slice(2, -2), "")) == null ? void 0 : _a.path;
+      if (!resolvedLink) {
+        throw Error(`Invalid link: ${graphData.cleanedSource}`);
+      }
+      return this.makeDynamicSvg((await this.vaultAdapter.read(resolvedLink)).toString(), graphData.extras);
     }
     if (!fs2.existsSync(inputFile)) {
       fs2.writeFileSync(inputFile, graphData.cleanedSource);

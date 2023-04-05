@@ -1,5 +1,5 @@
 /* eslint-disable no-constant-condition */
-import { DataAdapter, MarkdownPostProcessorContext } from 'obsidian';
+import { DataAdapter, MarkdownPostProcessorContext, MetadataCache } from 'obsidian';
 import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -146,12 +146,14 @@ export function getTempDir(type: RenderType): string {
 export class Processors {
     pluginSettings: GraphvizSettings;
     vaultAdapter: DataAdapter;
+    metadataCache: MetadataCache;
 
     referenceGraphMap: Map<string, { sourcePath: string, extras: Map<string, string> }> = new Map();
 
     constructor(plugin: GraphvizPlugin) {
         this.pluginSettings = plugin.settings;
         this.vaultAdapter = plugin.app.vault.adapter;
+        this.metadataCache = plugin.app.metadataCache;
     }
 
     private getRendererParameters(type: RenderType, sourceFile: string, outputFile: string): [string, string[]] {
@@ -362,7 +364,11 @@ export class Processors {
         const graphData = this.parseFrontMatter(source, outputFile);
 
         if (type === 'dynamic-svg') {
-            return this.makeDynamicSvg((await this.vaultAdapter.read(graphData.cleanedSource)).toString(), graphData.extras);
+            const resolvedLink = this.metadataCache.getFirstLinkpathDest(graphData.cleanedSource.slice(2, -2), '')?.path;
+            if(!resolvedLink) {
+                throw Error(`Invalid link: ${graphData.cleanedSource}`);
+            }
+            return this.makeDynamicSvg((await this.vaultAdapter.read(resolvedLink)).toString(), graphData.extras);
         }
 
         if (!fs.existsSync(inputFile)) {
