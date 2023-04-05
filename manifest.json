@@ -1,0 +1,10 @@
+{
+  "id": "obsidian-universal-renderer",
+  "name": "Obsidian Universal renderer",
+  "version": "1.0.7",
+  "minAppVersion": "0.11.5",
+  "description": "Render Many different Diagrams",
+  "author": "Kloud",
+  "authorUrl": "https://dgudim.github.io",
+  "isDesktopOnly": true
+}

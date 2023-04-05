@@ -1,0 +1,28 @@
+{
+  "name": "obsidian-graphviz",
+  "version": "1.0.5",
+  "description": "Graphviz rendering for obsidian md",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "npm run lint && node esbuild.config.mjs production",
+    "lint": "eslint . --ext .ts --ext .json"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^18.15.3",
+    "@types/tmp": "^0.2.3",
+    "@typescript-eslint/eslint-plugin": "^5.55.0",
+    "@typescript-eslint/parser": "^5.55.0",
+    "builtin-modules": "^3.3.0",
+    "esbuild": "0.17.11",
+    "eslint": "8.36.0",
+    "eslint-plugin-json": "3.1.0",
+    "obsidian": "^1.1.1",
+    "tmp": "0.2.1",
+    "tslib": "2.5.0",
+    "typescript": "4.9.5"
+  }
+}
