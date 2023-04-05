@@ -7,6 +7,7 @@ export type GraphvizSettings = {
   pdf2svgPath: string;
   blockdiagPath: string;
   ditaaPath: string;
+  asciidocPath: string;
 }
 
 export const DEFAULT_SETTINGS: GraphvizSettings = {
@@ -14,7 +15,8 @@ export const DEFAULT_SETTINGS: GraphvizSettings = {
   pdflatexPath: 'pdflatex',
   pdf2svgPath: 'pdf2svg',
   blockdiagPath: 'blockdiag',
-  ditaaPath: 'ditaa'
+  ditaaPath: 'ditaa',
+  asciidocPath: 'asciidoctor',
 };
 
 export class GraphvizSettingsTab extends PluginSettingTab {

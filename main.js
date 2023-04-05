@@ -46,7 +46,8 @@ var DEFAULT_SETTINGS = {
   pdflatexPath: "pdflatex",
   pdf2svgPath: "pdf2svg",
   blockdiagPath: "blockdiag",
-  ditaaPath: "ditaa"
+  ditaaPath: "ditaa",
+  asciidocPath: "asciidoctor"
 };
 var GraphvizSettingsTab = class extends import_obsidian.PluginSettingTab {
   constructor(plugin) {
@@ -88,7 +89,7 @@ function insertStr(str, start, newSubStr) {
 
 // src/processors.ts
 var md5 = (contents) => crypto.createHash("md5").update(contents).digest("hex");
-var renderTypes = ["dot", "latex", "ditaa", "blockdiag", "refgraph", "dynamic-svg"];
+var renderTypes = ["dot", "latex", "ditaa", "blockdiag", "asciidoc", "refgraph", "dynamic-svg"];
 var svgTags = ["text", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon"];
 var svgStyleTags = ["fill", "stroke"];
 var svgStyleRegex = new RegExp(`(?:${svgStyleTags.join("|")})=".*?"`, "g");
@@ -149,7 +150,7 @@ var svgShadesMap = /* @__PURE__ */ new Map([
   // #A89984
   //['--g-color-dark100-hard']               // #1D2021 unused
   ["black", "--g-color-dark100"],
-  // #282828
+  // #282828           
   ["dimgray", "--g-color-dark100-soft"],
   // #32302F
   ["darkslategray", "--g-color-dark90"],
@@ -213,15 +214,17 @@ var Processors = class {
   getRendererParameters(type, sourceFile, outputFile) {
     switch (type) {
       case "dot":
-        return [this.pluginSettings.dotPath, ["-Tsvg", sourceFile, "-o", outputFile]];
+        return [this.pluginSettings.dotPath, ["-Tsvg", sourceFile, "-o", outputFile], false];
       case "latex":
-        return [this.pluginSettings.pdflatexPath, ["-shell-escape", "-output-directory", getTempDir(type), sourceFile]];
+        return [this.pluginSettings.pdflatexPath, ["-shell-escape", "-output-directory", getTempDir(type), sourceFile], false];
       case "ditaa":
-        return [this.pluginSettings.ditaaPath, [sourceFile, "--transparent", "--svg", "--overwrite"]];
+        return [this.pluginSettings.ditaaPath, [sourceFile, "--transparent", "--svg", "--overwrite"], false];
       case "blockdiag":
-        return [this.pluginSettings.blockdiagPath, ["--antialias", "-Tsvg", sourceFile, "-o", outputFile]];
+        return [this.pluginSettings.blockdiagPath, ["--antialias", "-Tsvg", sourceFile, "-o", outputFile], false];
+      case "asciidoc":
+        return [this.pluginSettings.asciidocPath, ["-e", sourceFile, "-o", outputFile], true];
       default:
-        return ["", []];
+        return ["", [], true];
     }
   }
   getProcessorForType(type) {
@@ -248,14 +251,21 @@ var Processors = class {
     });
   }
   async writeRenderedFile(inputFile, outputFile, type, conversionParams) {
-    const [cmdPath, params] = this.getRendererParameters(type, inputFile, outputFile);
+    const [cmdPath, params, skipDynamicSvg] = this.getRendererParameters(type, inputFile, outputFile);
     await this.spawnProcess(cmdPath, params);
     if (type === "latex") {
       await this.spawnProcess(this.pluginSettings.pdf2svgPath, [`${inputFile}.pdf`, outputFile]);
     }
-    const svg = this.makeDynamicSvg(fs2.readFileSync(outputFile).toString(), conversionParams);
-    fs2.writeFileSync(outputFile, svg.svgData);
-    return svg;
+    const renderedContent = readFileString(outputFile);
+    if (!skipDynamicSvg) {
+      const svg = this.makeDynamicSvg(renderedContent, conversionParams);
+      fs2.writeFileSync(outputFile, svg.svgData);
+      return svg;
+    }
+    return {
+      svgData: renderedContent,
+      extras: conversionParams
+    };
   }
   makeDynamicSvg(svgSource, conversionParams) {
     const width = conversionParams.get("width");
@@ -277,13 +287,19 @@ var Processors = class {
         let additionalTag = "";
         for (const svgStyleTag of svgStyleTags) {
           const tagStyle = styleSubstring.match(`${svgStyleTag}=".*?"`);
-          if (svgTag === "text" && !(tagStyle == null ? void 0 : tagStyle.length) && svgStyleTag == "stroke") {
+          if (!(tagStyle == null ? void 0 : tagStyle.length) && svgStyleTag == "stroke" && !conversionParams.get(`${svgTag}-implicit-stroke`)) {
             continue;
           }
           const tagColor = (tagStyle == null ? void 0 : tagStyle.length) ? tagStyle[0].replaceAll(/.*=|"/g, "") : "black";
           const rcolor = mapColor(tagColor);
-          if (rcolor.color) {
-            switch (conversionParams.get(`${svgTag}-${svgStyleTag}`)) {
+          if (!rcolor.color) {
+            newStyle += `${svgStyleTag}:${tagColor};`;
+            continue;
+          }
+          const params = (conversionParams.get(`${svgTag}-${svgStyleTag}`) || "").split(",");
+          let skip = false;
+          for (const param of params) {
+            switch (param) {
               case "keep-color":
                 additionalTag = 'class="keep-color"';
                 break;
@@ -307,11 +323,15 @@ var Processors = class {
                 rcolor.color = invertColor(rcolor.color);
                 break;
               case "skip":
-                continue;
+                skip = true;
+                break;
             }
+            if (skip) {
+              break;
+            }
+          }
+          if (!skip) {
             newStyle += `${svgStyleTag}:var(${rcolor.color});`;
-          } else {
-            newStyle += `${svgStyleTag}:${tagColor};`;
           }
         }
         newStyle += `" ${additionalTag} `;
@@ -364,7 +384,8 @@ var Processors = class {
       }
     }
     return {
-      cleanedSource: source.trim(),
+      cleanedSource: source.replace(/^\n|\n$/g, ""),
+      // only trim newlines
       extras: conversionParams
     };
   }
