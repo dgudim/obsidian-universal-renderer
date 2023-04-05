@@ -73,13 +73,25 @@ var GraphvizSettingsTab = class extends import_obsidian.PluginSettingTab {
 // src/processors.ts
 var os = __toESM(require("os"));
 var path = __toESM(require("path"));
-var fs = __toESM(require("fs"));
+var fs2 = __toESM(require("fs"));
 var import_child_process = require("child_process");
 var crypto = __toESM(require("crypto"));
+
+// src/utils.ts
+var fs = __toESM(require("fs"));
+function readFileString(path2) {
+  return fs.readFileSync(path2).toString();
+}
+function insertStr(str, start, newSubStr) {
+  return str.slice(0, start) + newSubStr + str.slice(start);
+}
+
+// src/processors.ts
 var md5 = (contents) => crypto.createHash("md5").update(contents).digest("hex");
 var renderTypes = ["dot", "latex", "ditaa", "blockdiag", "refgraph", "dynamic-svg"];
-var svgTags = ["path", "rect", "circle", "ellipse", "line", "polyline", "polygon"];
+var svgTags = ["text", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon"];
 var svgStyleTags = ["fill", "stroke"];
+var svgStyleRegex = new RegExp(`(?:${svgStyleTags.join("|")})=".*?"`, "g");
 var svgColorMap = /* @__PURE__ */ new Map([
   // dark colors
   ["darkred", "--g-color-dark-red"],
@@ -116,7 +128,9 @@ var svgColorMap = /* @__PURE__ */ new Map([
   ["coral", "--g-color-light-orange"],
   ["gold", "--g-color-light-yellow"],
   ["aqua", "--g-color-light-cyan"],
-  ["aquamarine", "--g-color-light-cyan"],
+  ["aquamarine", "--g-color-light-cyan"]
+]);
+var svgShadesMap = /* @__PURE__ */ new Map([
   // gray colors
   ["ghostwhite", "--g-color-light100-hard"],
   // #F9F5D7
@@ -130,6 +144,7 @@ var svgColorMap = /* @__PURE__ */ new Map([
   // #D5C4A1
   ["lightgray", "--g-color-light70"],
   // #BDAE93
+  ["lightgrey", "--g-color-light70"],
   ["silver", "--g-color-light60"],
   // #A89984
   //['--g-color-dark100-hard']               // #1D2021 unused
@@ -145,9 +160,49 @@ var svgColorMap = /* @__PURE__ */ new Map([
   // #665C54
   ["gray", "--g-color-dark60"],
   // #7C6F64
-  ["darkgray", "--g-color-gray"]
+  ["grey", "--g-color-dark60"],
+  ["darkgray", "--g-color-gray"],
   // #928374
+  ["darkgrey", "--g-color-gray"]
 ]);
+var presets = /* @__PURE__ */ new Map([
+  ["math-graph", /* @__PURE__ */ new Map([
+    ["ellipse-fill", "keep-shade"],
+    ["text-fill", "keep-shade"]
+  ])]
+]);
+function mapColor(color) {
+  const remappedColor = svgColorMap.get(color);
+  const remappedShade = svgShadesMap.get(color);
+  if (remappedColor) {
+    return {
+      color: remappedColor,
+      type: "color"
+    };
+  } else if (remappedShade) {
+    return {
+      color: remappedShade,
+      type: "color"
+    };
+  }
+  return {
+    color: void 0,
+    type: "unknown"
+  };
+}
+function invertColor(color) {
+  if (color === void 0) {
+    return void 0;
+  }
+  if (color.contains("light")) {
+    return color.replace("light", "dark");
+  } else {
+    return color.replace("dark", "light");
+  }
+}
+function getTempDir(type) {
+  return path.join(os.tmpdir(), `obsidian-${type}`);
+}
 var Processors = class {
   constructor(plugin) {
     this.referenceGraphMap = /* @__PURE__ */ new Map();
@@ -159,7 +214,7 @@ var Processors = class {
       case "dot":
         return [this.pluginSettings.dotPath, ["-Tsvg", sourceFile, "-o", outputFile]];
       case "latex":
-        return [this.pluginSettings.pdflatexPath, ["-shell-escape", "-output-directory", this.getTempDir(type), sourceFile]];
+        return [this.pluginSettings.pdflatexPath, ["-shell-escape", "-output-directory", getTempDir(type), sourceFile]];
       case "ditaa":
         return [this.pluginSettings.ditaaPath, [sourceFile, "--transparent", "--svg", "--overwrite"]];
       case "blockdiag":
@@ -197,48 +252,65 @@ var Processors = class {
     if (type === "latex") {
       await this.spawnProcess(this.pluginSettings.pdf2svgPath, [`${inputFile}.pdf`, outputFile]);
     }
-    const svg = this.makeDynamicSvg(fs.readFileSync(outputFile).toString(), conversionParams);
-    fs.writeFileSync(outputFile, svg.svgData);
+    const svg = this.makeDynamicSvg(fs2.readFileSync(outputFile).toString(), conversionParams);
+    fs2.writeFileSync(outputFile, svg.svgData);
     return svg;
-  }
-  readFileString(path2) {
-    return fs.readFileSync(path2).toString();
-  }
-  getTempDir(type) {
-    return path.join(os.tmpdir(), `obsidian-${type}`);
-  }
-  insertStr(str, start, newSubStr) {
-    return str.slice(0, start) + newSubStr + str.slice(start);
   }
   makeDynamicSvg(svgSource, conversionParams) {
     const svgStart = svgSource.indexOf("<svg") + 4;
-    console.error(svgStart + "                         ---- ");
     let currentIndex;
     for (const svgTag of svgTags) {
       currentIndex = svgStart;
       while (true) {
-        currentIndex = svgSource.indexOf(`<${svgTag}`, currentIndex) + svgTag.length;
+        currentIndex = svgSource.indexOf(`<${svgTag}`, currentIndex);
         if (currentIndex == -1) {
           break;
         }
-        const endIndex = svgSource.indexOf(">", currentIndex);
-        const styleSubstring = svgSource.substring(currentIndex, endIndex);
-        console.error(currentIndex);
-        console.error(endIndex);
-        console.error(styleSubstring);
-        let newStyle = ' style="';
+        currentIndex += svgTag.length + 2;
+        const styleSubstring = svgSource.substring(currentIndex, svgSource.indexOf(">", currentIndex));
+        let newStyle = 'style="';
+        let additionalTag = "";
         for (const svgStyleTag of svgStyleTags) {
           const tagStyle = styleSubstring.match(`${svgStyleTag}=".*?"`);
-          const tagColor = (tagStyle == null ? void 0 : tagStyle.length) ? tagStyle[0].replace(/.*=|"/, "") : "black";
-          const remappedColor = svgColorMap.get(tagColor) || tagColor;
-          console.error(`${tagStyle}, ${tagColor}, ${remappedColor}`);
-          newStyle += `${svgStyleTag}:var(${remappedColor});`;
+          if (svgTag === "text" && !(tagStyle == null ? void 0 : tagStyle.length) && svgStyleTag == "stroke") {
+            continue;
+          }
+          const tagColor = (tagStyle == null ? void 0 : tagStyle.length) ? tagStyle[0].replaceAll(/.*=|"/g, "") : "black";
+          const rcolor = mapColor(tagColor);
+          if (rcolor.color) {
+            switch (conversionParams.get(`${svgTag}-${svgStyleTag}`)) {
+              case "keep-color":
+                additionalTag = 'class="keep-color"';
+                break;
+              case "keep-shade":
+                additionalTag = 'class="keep-shade"';
+                break;
+              case "keep-all":
+                additionalTag = 'class="keep-color keep-shade"';
+                break;
+              case "invert-color":
+                if (rcolor.type === "color") {
+                  rcolor.color = invertColor(rcolor.color);
+                }
+                break;
+              case "invert-shade":
+                if (rcolor.type === "shade") {
+                  rcolor.color = invertColor(rcolor.color);
+                }
+                break;
+              case "invert-all":
+                rcolor.color = invertColor(rcolor.color);
+            }
+            newStyle += `${svgStyleTag}:var(${rcolor.color});`;
+          } else {
+            newStyle += `${svgStyleTag}:${tagColor};`;
+          }
         }
-        newStyle += '" ';
-        svgSource = this.insertStr(svgSource, currentIndex, newStyle);
-        break;
+        newStyle += `" ${additionalTag} `;
+        svgSource = insertStr(svgSource, currentIndex, newStyle);
       }
     }
+    svgSource = svgSource.replaceAll(svgStyleRegex, "");
     return {
       svgData: svgSource,
       extras: conversionParams
@@ -247,6 +319,7 @@ var Processors = class {
   parseFrontMatter(source, outputFile) {
     const conversionParams = /* @__PURE__ */ new Map();
     let referenceName = "";
+    let preset;
     if (source.startsWith("---")) {
       const lastIndex = source.indexOf("---", 3);
       const frontMatter = source.substring(3, lastIndex);
@@ -255,10 +328,23 @@ var Processors = class {
         const parameter_split = parameter.split(":");
         const parameter_name = parameter_split[0].trim();
         const parameter_value = parameter_split[1].trim();
-        if (parameter_name === "ref-name") {
-          referenceName = parameter_value;
-        } else {
-          conversionParams.set(parameter_name, parameter_value);
+        switch (parameter_name) {
+          case "ref-name":
+          case "graph-name":
+          case "name":
+            referenceName = parameter_value;
+            break;
+          case "preset":
+            preset = presets.get(parameter_value);
+            if (!preset) {
+              break;
+            }
+            for (const [preset_key, preset_value] of preset) {
+              conversionParams.set(preset_key, preset_value);
+            }
+            break;
+          default:
+            conversionParams.set(parameter_name, parameter_value);
         }
       }
       source = source.substring(lastIndex + 3);
@@ -281,26 +367,26 @@ var Processors = class {
         throw Error(`Graph with name ${source} does not exist`);
       }
       return {
-        svgData: this.readFileString(graphData2.sourcePath),
+        svgData: readFileString(graphData2.sourcePath),
         extras: graphData2.extras
       };
     }
-    const temp_dir = this.getTempDir(type);
+    const temp_dir = getTempDir(type);
     const graph_hash = md5(source);
     const inputFile = path.join(temp_dir, graph_hash);
     const outputFile = `${inputFile}.svg`;
-    if (!fs.existsSync(temp_dir)) {
-      fs.mkdirSync(temp_dir);
+    if (!fs2.existsSync(temp_dir)) {
+      fs2.mkdirSync(temp_dir);
     }
     const graphData = this.parseFrontMatter(source, outputFile);
     if (type === "dynamic-svg") {
       return this.makeDynamicSvg((await this.vaultAdapter.read(graphData.cleanedSource)).toString(), graphData.extras);
     }
-    if (!fs.existsSync(inputFile)) {
-      fs.writeFileSync(inputFile, graphData.cleanedSource);
-    } else if (fs.existsSync(outputFile)) {
+    if (!fs2.existsSync(inputFile)) {
+      fs2.writeFileSync(inputFile, graphData.cleanedSource);
+    } else if (fs2.existsSync(outputFile)) {
       return {
-        svgData: this.readFileString(outputFile),
+        svgData: readFileString(outputFile),
         extras: graphData.extras
       };
     }

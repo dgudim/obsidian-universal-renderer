@@ -9,16 +9,20 @@ import GraphvizPlugin from './main';
 import { GraphvizSettings } from './setting';
 
 import * as crypto from 'crypto';
+import { insertStr, readFileString } from './utils';
 const md5 = (contents: string) => crypto.createHash('md5').update(contents).digest('hex');
 
 export const renderTypes = ['dot', 'latex', 'ditaa', 'blockdiag', 'refgraph', 'dynamic-svg'] as const;
 type RenderType = typeof renderTypes[number];
 
-const svgTags = ['path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon'] as const;
+const svgTags = ['text', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon'] as const;
 
 const svgStyleTags = ['fill', 'stroke'] as const;
+const svgStyleRegex = new RegExp(`(?:${svgStyleTags.join('|')})=".*?"`, 'g');
 
 type SSMap = Map<string, string>;
+
+type ColorType = 'color' | 'shade' | 'unknown';
 
 const svgColorMap = new Map<string, string>([
 
@@ -69,7 +73,9 @@ const svgColorMap = new Map<string, string>([
     ['gold', '--g-color-light-yellow'],
     ['aqua', '--g-color-light-cyan'],
     ['aquamarine', '--g-color-light-cyan'],
+]);
 
+const svgShadesMap = new Map<string, string>([
 
     // gray colors
     ['ghostwhite', '--g-color-light100-hard'], // #F9F5D7
@@ -78,6 +84,7 @@ const svgColorMap = new Map<string, string>([
     ['snow', '--g-color-light90'],             // #EBDBB2                    
     ['whitesmoke', '--g-color-light80'],       // #D5C4A1
     ['lightgray', '--g-color-light70'],        // #BDAE93
+    ['lightgrey', '--g-color-light70'],
     ['silver', '--g-color-light60'],           // #A89984
 
     //['--g-color-dark100-hard']               // #1D2021 unused
@@ -87,9 +94,54 @@ const svgColorMap = new Map<string, string>([
     ['slategray', '--g-color-dark80'],         // #504945
     ['lightslategray', '--g-color-dark70'],    // #665C54
     ['gray', '--g-color-dark60'],              // #7C6F64
+    ['grey', '--g-color-dark60'],
 
-    ['darkgray', '--g-color-gray']            // #928374
+    ['darkgray', '--g-color-gray'],            // #928374
+    ['darkgrey', '--g-color-gray']
+
 ]);
+
+const presets = new Map<string, Map<string, string>>([
+    ['math-graph', new Map<string, string>([
+        ['ellipse-fill', 'keep-shade'],
+        ['text-fill', 'keep-shade']
+    ])]
+]);
+
+function mapColor(color: string): { color: string | undefined, type: ColorType } {
+    const remappedColor = svgColorMap.get(color);
+    const remappedShade = svgShadesMap.get(color);
+    if (remappedColor) {
+        return {
+            color: remappedColor,
+            type: 'color'
+        };
+    } else if (remappedShade) {
+        return {
+            color: remappedShade,
+            type: 'color'
+        };
+    }
+    return {
+        color: undefined,
+        type: 'unknown'
+    };
+}
+
+function invertColor(color: string | undefined) {
+    if (color === undefined) {
+        return undefined;
+    }
+    if (color.contains('light')) {
+        return color.replace('light', 'dark');
+    } else {
+        return color.replace('dark', 'light');
+    }
+}
+
+export function getTempDir(type: RenderType): string {
+    return path.join(os.tmpdir(), `obsidian-${type}`);
+}
 
 export class Processors {
     pluginSettings: GraphvizSettings;
@@ -107,7 +159,7 @@ export class Processors {
             case 'dot':
                 return [this.pluginSettings.dotPath, ['-Tsvg', sourceFile, '-o', outputFile]];
             case 'latex':
-                return [this.pluginSettings.pdflatexPath, ['-shell-escape', '-output-directory', this.getTempDir(type), sourceFile]];
+                return [this.pluginSettings.pdflatexPath, ['-shell-escape', '-output-directory', getTempDir(type), sourceFile]];
             case 'ditaa':
                 return [this.pluginSettings.ditaaPath, [sourceFile, '--transparent', '--svg', '--overwrite']];
             case 'blockdiag':
@@ -156,61 +208,77 @@ export class Processors {
         return svg;
     }
 
-    private readFileString(path: string): string {
-        return fs.readFileSync(path).toString();
-    }
-
-    private getTempDir(type: RenderType): string {
-        return path.join(os.tmpdir(), `obsidian-${type}`);
-    }
-
-    private insertStr(str: string, start: number, newSubStr: string) {
-        return str.slice(0, start) + newSubStr + str.slice(start);
-    }
-
     private makeDynamicSvg(svgSource: string, conversionParams: SSMap) {
         // replace colors with dynamic colors
         const svgStart = svgSource.indexOf('<svg') + 4;
-        console.error(svgStart + '                         ---- ');
         let currentIndex;
 
         for (const svgTag of svgTags) {
             currentIndex = svgStart;
             while (true) {
-                currentIndex = svgSource.indexOf(`<${svgTag}`, currentIndex) + svgTag.length;
+                currentIndex = svgSource.indexOf(`<${svgTag}`, currentIndex);
 
                 if (currentIndex == -1) {
                     break;
                 }
 
-                const endIndex = svgSource.indexOf('>', currentIndex);
-                const styleSubstring = svgSource.substring(currentIndex, endIndex);
+                currentIndex += svgTag.length + 2; // 2 because of '<' and ' '
+                const styleSubstring = svgSource.substring(currentIndex, svgSource.indexOf('>', currentIndex));
 
-                console.error(currentIndex);
-                console.error(endIndex);
-                console.error(styleSubstring);
-
-                let newStyle = ' style="';
+                let newStyle = 'style="';
+                let additionalTag = '';
 
                 for (const svgStyleTag of svgStyleTags) {
+
                     const tagStyle = styleSubstring.match(`${svgStyleTag}=".*?"`);
-                    const tagColor = tagStyle?.length ? tagStyle[0].replace(/.*=|"/, '') : 'black';
-                    const remappedColor = svgColorMap.get(tagColor) || tagColor;
-                    console.error(`${tagStyle}, ${tagColor}, ${remappedColor}`);
-                    newStyle += `${svgStyleTag}:var(${remappedColor});`;
+
+                    if (svgTag === 'text' && !tagStyle?.length && svgStyleTag == 'stroke') {
+                        // skip implicit stroke for text
+                        continue;
+                    }
+
+                    const tagColor = tagStyle?.length ? tagStyle[0].replaceAll(/.*=|"/g, '') : 'black';
+                    const rcolor = mapColor(tagColor);
+
+                    if (rcolor.color) {
+
+                        switch (conversionParams.get(`${svgTag}-${svgStyleTag}`)) {
+                            case 'keep-color':
+                                additionalTag = 'class="keep-color"';
+                                break;
+                            case 'keep-shade':
+                                additionalTag = 'class="keep-shade"';
+                                break;
+                            case 'keep-all':
+                                additionalTag = 'class="keep-color keep-shade"';
+                                break;
+                            case 'invert-color':
+                                if (rcolor.type === 'color') {
+                                    rcolor.color = invertColor(rcolor.color);
+                                }
+                                break;
+                            case 'invert-shade':
+                                if (rcolor.type === 'shade') {
+                                    rcolor.color = invertColor(rcolor.color);
+                                }
+                                break;
+                            case 'invert-all':
+                                rcolor.color = invertColor(rcolor.color);
+                        }
+
+                        newStyle += `${svgStyleTag}:var(${rcolor.color});`;
+                    } else {
+                        newStyle += `${svgStyleTag}:${tagColor};`;
+                    }
                 }
 
-                newStyle += '" ';
+                newStyle += `" ${additionalTag} `;
 
-                svgSource = this.insertStr(svgSource, currentIndex, newStyle);
-
-                break;
+                svgSource = insertStr(svgSource, currentIndex, newStyle);
             }
         }
 
-        // strip font-family to inherit from note's font-family
-        // TODO: set font-family to document's font-family
-        //svgSource = svgSource.replaceAll(/font-family=".*?"/g, '');
+        svgSource = svgSource.replaceAll(svgStyleRegex, '');
         return {
             svgData: svgSource,
             extras: conversionParams
@@ -220,6 +288,8 @@ export class Processors {
     private parseFrontMatter(source: string, outputFile: string) {
         const conversionParams = new Map<string, string>();
         let referenceName = '';
+        let preset;
+
         if (source.startsWith('---')) {
 
             const lastIndex = source.indexOf('---', 3);
@@ -231,10 +301,23 @@ export class Processors {
                 const parameter_name = parameter_split[0].trim();
                 const parameter_value = parameter_split[1].trim();
 
-                if (parameter_name === 'ref-name') {
-                    referenceName = parameter_value;
-                } else {
-                    conversionParams.set(parameter_name, parameter_value);
+                switch (parameter_name) {
+                    case 'ref-name':
+                    case 'graph-name':
+                    case 'name':
+                        referenceName = parameter_value;
+                        break;
+                    case 'preset':
+                        preset = presets.get(parameter_value);
+                        if (!preset) {
+                            break;
+                        }
+                        for (const [preset_key, preset_value] of preset) {
+                            conversionParams.set(preset_key, preset_value);
+                        }
+                        break;
+                    default:
+                        conversionParams.set(parameter_name, parameter_value);
                 }
             }
 
@@ -262,12 +345,12 @@ export class Processors {
                 throw Error(`Graph with name ${source} does not exist`);
             }
             return {
-                svgData: this.readFileString(graphData.sourcePath),
+                svgData: readFileString(graphData.sourcePath),
                 extras: graphData.extras
             };
         }
 
-        const temp_dir = this.getTempDir(type);
+        const temp_dir = getTempDir(type);
         const graph_hash = md5(source);
         const inputFile = path.join(temp_dir, graph_hash);
         const outputFile = `${inputFile}.svg`;
@@ -286,7 +369,7 @@ export class Processors {
             fs.writeFileSync(inputFile, graphData.cleanedSource);
         } else if (fs.existsSync(outputFile)) {
             return {
-                svgData: this.readFileString(outputFile),
+                svgData: readFileString(outputFile),
                 extras: graphData.extras
             };
         }
