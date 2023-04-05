@@ -98,6 +98,7 @@ var import_child_process = require("child_process");
 var crypto = __toESM(require("crypto"));
 var md5 = (contents) => crypto.createHash("md5").update(contents).digest("hex");
 var renderTypes = ["dot", "latex", "ditaa", "blockdiag", "refgraph", "dynamic-svg"];
+var svgTags = ["path", "rect", "circle", "ellipse", "line", "polyline", "polygon"];
 var svgColorMap = /* @__PURE__ */ new Map([
   // dark colors
   ["darkred", "--g-color-dark-red"],
@@ -228,6 +229,19 @@ var Processors = class {
     return path.join(os.tmpdir(), `obsidian-${type}`);
   }
   makeDynamicSvg(svgSource, conversionParams) {
+    for (const svgTag of svgTags) {
+      let currentIndex = 0;
+      while (true) {
+        currentIndex = svgSource.indexOf(svgTag, currentIndex);
+        const endIndex = svgSource.indexOf(">", currentIndex);
+        const styleSubsrting = svgSource.substring(currentIndex, endIndex);
+        const fillstyle = styleSubsrting.match(/fill=".*?"/);
+        const strokestyle = styleSubsrting.match(/stroke=".*?"/);
+        if (currentIndex != -1) {
+          break;
+        }
+      }
+    }
     for (const [color, target_var] of svgColorMap) {
       svgSource = svgSource.replaceAll(`"${color}"`, `"var(${target_var})"`);
     }

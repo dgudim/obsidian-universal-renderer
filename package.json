@@ -12,17 +12,17 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^18.15.3",
+    "@types/node": "^18.15.11",
     "@types/tmp": "^0.2.3",
-    "@typescript-eslint/eslint-plugin": "^5.55.0",
-    "@typescript-eslint/parser": "^5.55.0",
+    "@typescript-eslint/eslint-plugin": "^5.57.1",
+    "@typescript-eslint/parser": "^5.57.1",
     "builtin-modules": "^3.3.0",
-    "esbuild": "0.17.11",
-    "eslint": "8.36.0",
+    "esbuild": "0.17.15",
+    "eslint": "8.37.0",
     "eslint-plugin-json": "3.1.0",
     "obsidian": "^1.1.1",
     "tmp": "0.2.1",
     "tslib": "2.5.0",
-    "typescript": "4.9.5"
+    "typescript": "5.0.3"
   }
 }
