@@ -107,3 +107,21 @@
     --g-color-purple:      var(--neutral-purple);
     --g-color-dark-purple: var(--bright-purple);
 }
+
+
+
+/* tables for asciidoc */
+
+.block-language-asciidoc p.tableblock:last-child{margin-bottom:0.3em; margin-top:0.3em}
+
+.block-language-asciidoc table.frame-none>colgroup+*>:first-child>*,table.frame-sides>colgroup+*>:first-child>*{border-top-width:0}
+.block-language-asciidoc table.frame-none>:last-child>:last-child>*,table.frame-sides>:last-child>:last-child>*{border-bottom-width:0}
+.block-language-asciidoc table.frame-none>*>tr>:first-child,table.frame-ends>*>tr>:first-child{border-left-width:0}
+.block-language-asciidoc table.frame-none>*>tr>:last-child,table.frame-ends>*>tr>:last-child{border-right-width:0}
+
+.block-language-asciidoc th.halign-left,td.halign-left{text-align:left}
+.block-language-asciidoc th.halign-right,td.halign-right{text-align:right}
+.block-language-asciidoc th.halign-center,td.halign-center{text-align:center}
+.block-language-asciidoc th.valign-top,td.valign-top{vertical-align:top}
+.block-language-asciidoc th.valign-bottom,td.valign-bottom{vertical-align:bottom}
+.block-language-asciidoc th.valign-middle,td.valign-middle{vertical-align:middle}}

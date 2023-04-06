@@ -93,88 +93,215 @@ var renderTypes = ["dot", "latex", "ditaa", "blockdiag", "asciidoc", "refgraph",
 var svgTags = ["text", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon"];
 var svgStyleTags = ["fill", "stroke"];
 var svgStyleRegex = new RegExp(`(?:${svgStyleTags.join("|")})=".*?"`, "g");
-var svgColorMap = /* @__PURE__ */ new Map([
+var svgColors = [
   // dark colors
-  ["darkred", "--g-color-dark-red"],
-  ["firebrick", "--g-color-dark-red"],
-  ["maroon", "--g-color-dark-red"],
-  ["brown", "--g-color-dark-red"],
-  ["darkred", "--g-color-dark-red"],
-  ["darkmagenta", "--g-color-dark-purple"],
-  ["darkviolet", "--g-color-dark-purple"],
-  ["blueviolet", "--g-color-dark-purple"],
-  ["darkorchid", "--g-color-dark-purple"],
-  ["indigo", "--g-color-dark-purple"],
-  ["darkgreen", "--g-color-dark-green"],
-  ["darkblue", "--g-color-dark-blue"],
-  ["chocolate", "--g-color-dark-orange"],
-  ["goldenrod", "--g-color-dark-yellow"],
-  ["darkcyan", "--g-color-dark-cyan"],
+  [[
+    ["darkred", "#8B0000"],
+    // intuitive
+    ["firebrick", "#B22222"],
+    ["maroon", "#800000"],
+    ["brown", "#A52A2A"]
+  ], "--g-color-dark-red"],
+  [[
+    ["darkmagenta", "#8B008B"],
+    ["darkviolet", "#9400D3"],
+    ["darkorchid", "#9932CC"],
+    ["blueviolet", "#8A2BE2"],
+    ["indigo", "#4B0082"]
+  ], "--g-color-dark-purple"],
+  [[
+    ["darkgreen", "#006400"]
+  ], "--g-color-dark-green"],
+  [[
+    ["darkblue", "#00008B"],
+    // intuitive
+    ["midnightblue", "#191970"],
+    ["navy", "#000080"]
+  ], "--g-color-dark-blue"],
+  [[
+    ["chocolate", "#D2691E"]
+  ], "--g-color-dark-orange"],
+  [[
+    ["goldenrod", "#DAA520"],
+    ["darkgoldenrod", "#B8860B"]
+  ], "--g-color-dark-yellow"],
+  [[
+    ["darkcyan", "#008B8B"],
+    // intuitive
+    ["lightseagreen", "#20B2AA"],
+    ["teal", "#008080"]
+  ], "--g-color-dark-cyan"],
   // neutral colors
-  ["red", "--g-color-red"],
-  ["purple", "--g-color-purple"],
-  ["green", "--g-color-green"],
-  ["blue", "--g-color-blue"],
-  ["darkorange", "--g-color-orange"],
-  ["yellow", "--g-color-yellow"],
-  ["cyan", "--g-color-cyan"],
+  [[
+    ["red", "#FF0000"],
+    // intuitive
+    ["tomato", "#FF6347"]
+  ], "--g-color-red"],
+  [[
+    ["purple", "#800080"],
+    // intuitive
+    ["mediumpurple", "#9370DB"],
+    ["magenta", "#FF00FF"]
+  ], "--g-color-purple"],
+  [[
+    ["green", "#008000"]
+  ], "--g-color-green"],
+  // intuitive
+  [[
+    ["blue", "#0000FF"]
+  ], "--g-color-blue"],
+  // intuitive
+  [[
+    ["darkorange", "#FF8C00"]
+  ], "--g-color-orange"],
+  [[
+    ["yellow", "#FFFF00"]
+  ], "--g-color-yellow"],
+  // intuitive
+  [[
+    ["cyan", "aqua", "#00FFFF"]
+  ], "--g-color-cyan"],
+  // intuitive
   // light colors
-  ["tomato", "--g-color-light-red"],
-  ["lightcoral", "--g-color-light-red"],
-  ["indianred", "--g-color-light-red"],
-  ["magenta", "--g-color-light-purple"],
-  ["lightgreen", "--g-color-light-green"],
-  ["lightblue", "--g-color-light-blue"],
-  ["orange", "--g-color-light-orange"],
-  ["coral", "--g-color-light-orange"],
-  ["gold", "--g-color-light-yellow"],
-  ["aqua", "--g-color-light-cyan"],
-  ["aquamarine", "--g-color-light-cyan"]
-]);
-var svgShadesMap = /* @__PURE__ */ new Map([
+  [[
+    ["lightcoral", "#F08080"],
+    ["salmon", "#FA8072"],
+    ["pink", "#FFC0CB"],
+    ["lightsalmon", "#FFA07A"],
+    ["indianred", "#CD5C5C"]
+  ], "--g-color-light-red"],
+  [[
+    ["plum", "#DDA0DD"],
+    ["violet", "#EE82EE"],
+    ["magenta", "#DA70D6"],
+    ["mediumorchid", "#BA55D3"]
+  ], "--g-color-light-purple"],
+  [[
+    ["lightgreen", "#90EE90"],
+    // intuitive
+    ["palegreen", "#98FB98"]
+  ], "--g-color-light-green"],
+  [[
+    ["powderblue", "#B0E0E6"],
+    ["lightblue", "#ADD8E6"],
+    // intuitive
+    ["skyblue", "#87CEEB"],
+    ["lightskyblue", "#87CEFA"]
+  ], "--g-color-light-blue"],
+  [[
+    ["orange", "#FFA500"],
+    ["coral", "#FF7F50"]
+  ], "--g-color-light-orange"],
+  [[
+    ["gold", "#FFD700"]
+  ], "--g-color-light-yellow"],
+  [[
+    ["paleturquoise", "#AFEEEE"],
+    ["aquamarine", "#7FFFD4"]
+  ], "--g-color-light-cyan"]
+];
+var colorToVar;
+var hexColorToVar;
+var svgShades = [
   // gray colors
-  ["ghostwhite", "--g-color-light100-hard"],
+  [[
+    ["ghostwhite", "#F8F8FF"]
+  ], "--g-color-light100-hard"],
   // #F9F5D7
-  ["white", "--g-color-light100"],
+  [[
+    ["white", "#FFFFFF"]
+  ], "--g-color-light100"],
   // #FBF1C7
-  ["seashell", "--g-color-light100-soft"],
+  [[
+    ["seashell", "#FFF5EE"]
+  ], "--g-color-light100-soft"],
   // #F2E5BC
-  ["snow", "--g-color-light90"],
+  [[
+    ["snow", "#FFFAFA"]
+  ], "--g-color-light90"],
   // #EBDBB2                    
-  ["whitesmoke", "--g-color-light80"],
+  [[
+    ["whitesmoke", "#F5F5F5"]
+  ], "--g-color-light80"],
   // #D5C4A1
-  ["lightgray", "--g-color-light70"],
+  [[
+    ["lightgray", "lightgrey", "#D3D3D3"]
+  ], "--g-color-light70"],
   // #BDAE93
-  ["lightgrey", "--g-color-light70"],
-  ["silver", "--g-color-light60"],
+  [[
+    ["silver", "#C0C0C0"]
+  ], "--g-color-light60"],
   // #A89984
-  //['--g-color-dark100-hard']               // #1D2021 unused
-  ["black", "--g-color-dark100"],
+  //['--g-color-dark100-hard']                     // #1D2021 unused
+  [[
+    ["black", "#000000"]
+  ], "--g-color-dark100"],
   // #282828           
-  ["dimgray", "--g-color-dark100-soft"],
+  [[
+    ["dimgray", "dimgrey", "#696969"]
+  ], "--g-color-dark100-soft"],
   // #32302F
-  ["darkslategray", "--g-color-dark90"],
+  [[
+    ["darkslategray", "darkslategrey", "#2F4F4F"]
+  ], "--g-color-dark90"],
   // #3C3836
-  ["slategray", "--g-color-dark80"],
+  [[
+    ["slategray", "slategrey", "#708090"]
+  ], "--g-color-dark80"],
   // #504945
-  ["lightslategray", "--g-color-dark70"],
+  [[
+    ["lightslategray", "lightslategrey", "#778899"]
+  ], "--g-color-dark70"],
   // #665C54
-  ["gray", "--g-color-dark60"],
+  [[
+    ["gray", "grey", "#808080"]
+  ], "--g-color-dark60"],
   // #7C6F64
-  ["grey", "--g-color-dark60"],
-  ["darkgray", "--g-color-gray"],
+  [[
+    ["darkgray", "darkgrey", "#A9A9A9"]
+  ], "--g-color-gray"]
   // #928374
-  ["darkgrey", "--g-color-gray"]
-]);
+];
+var shadeToVar;
+var hexShadeToVar;
 var presets = /* @__PURE__ */ new Map([
   ["math-graph", /* @__PURE__ */ new Map([
     ["ellipse-fill", "keep-shade"],
     ["text-fill", "keep-shade"]
   ])]
 ]);
-function mapColor(color) {
-  const remappedColor = svgColorMap.get(color);
-  const remappedShade = svgShadesMap.get(color);
+function transformColorMap(colorList) {
+  const colorToVar2 = /* @__PURE__ */ new Map();
+  const hexToVar = /* @__PURE__ */ new Map();
+  for (const entry of colorList) {
+    const colorVar = entry[1];
+    for (const colorEntries of entry[0]) {
+      for (const color of colorEntries) {
+        if (color.startsWith("#")) {
+          hexToVar.set(color, colorVar);
+        }
+        colorToVar2.set(color, colorVar);
+      }
+    }
+  }
+  return {
+    colorToVar: colorToVar2,
+    hexToVar
+  };
+}
+function mapColor(color, mapClosestColor) {
+  if (!shadeToVar) {
+    const transformed = transformColorMap(svgShades);
+    shadeToVar = transformed.colorToVar;
+    hexShadeToVar = transformed.hexToVar;
+  }
+  if (!colorToVar) {
+    const transformed = transformColorMap(svgColors);
+    colorToVar = transformed.colorToVar;
+    hexColorToVar = transformed.hexToVar;
+  }
+  const remappedColor = colorToVar.get(color);
+  const remappedShade = shadeToVar.get(color);
   if (remappedColor) {
     return {
       color: remappedColor,
@@ -183,7 +310,7 @@ function mapColor(color) {
   } else if (remappedShade) {
     return {
       color: remappedShade,
-      type: "color"
+      type: "shade"
     };
   }
   return {
@@ -287,11 +414,12 @@ var Processors = class {
         let additionalTag = "";
         for (const svgStyleTag of svgStyleTags) {
           const tagStyle = styleSubstring.match(`${svgStyleTag}=".*?"`);
+          console.error(tagStyle);
           if (!(tagStyle == null ? void 0 : tagStyle.length) && svgStyleTag == "stroke" && !conversionParams.get(`${svgTag}-implicit-stroke`)) {
             continue;
           }
           const tagColor = (tagStyle == null ? void 0 : tagStyle.length) ? tagStyle[0].replaceAll(/.*=|"/g, "") : "black";
-          const rcolor = mapColor(tagColor);
+          const rcolor = mapColor(tagColor, false);
           if (!rcolor.color) {
             newStyle += `${svgStyleTag}:${tagColor};`;
             continue;
