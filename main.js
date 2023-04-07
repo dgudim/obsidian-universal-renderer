@@ -277,10 +277,11 @@ function transformColorMap(colorList) {
     const colorVar = entry[1];
     for (const colorEntries of entry[0]) {
       for (const color of colorEntries) {
-        if (color.startsWith("#")) {
-          hexToVar.set(color, colorVar);
+        const colorLower = color.toLowerCase();
+        if (colorLower.startsWith("#")) {
+          hexToVar.set(colorLower, colorVar);
         }
-        colorToVar2.set(color, colorVar);
+        colorToVar2.set(colorLower, colorVar);
       }
     }
   }
@@ -414,11 +415,19 @@ var Processors = class {
         let additionalTag = "";
         for (const svgStyleTag of svgStyleTags) {
           const tagStyle = styleSubstring.match(`${svgStyleTag}=".*?"`);
-          console.error(tagStyle);
           if (!(tagStyle == null ? void 0 : tagStyle.length) && svgStyleTag == "stroke" && !conversionParams.get(`${svgTag}-implicit-stroke`)) {
             continue;
           }
-          const tagColor = (tagStyle == null ? void 0 : tagStyle.length) ? tagStyle[0].replaceAll(/.*=|"/g, "") : "black";
+          let tagColor = (tagStyle == null ? void 0 : tagStyle.length) ? tagStyle[0].replaceAll(/.*=|"/g, "") : "black";
+          if (tagColor.startsWith("rgb")) {
+            const colors = tagColor.replaceAll(/rgb\(|\)| |%/g, "").split(",");
+            let hexString = "#";
+            for (const color of colors) {
+              const component = Math.floor(parseInt(color) / 100 * 255).toString(16);
+              hexString += component.length == 1 ? `0${component}` : component;
+            }
+            tagColor = hexString;
+          }
           const rcolor = mapColor(tagColor, false);
           if (!rcolor.color) {
             newStyle += `${svgStyleTag}:${tagColor};`;
