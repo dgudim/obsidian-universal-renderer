@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable no-constant-condition */
 import { DataAdapter, MarkdownPostProcessorContext, MetadataCache } from 'obsidian';
 import * as os from 'os';
@@ -9,7 +10,7 @@ import GraphvizPlugin from './main';
 import { GraphvizSettings } from './setting';
 
 import * as crypto from 'crypto';
-import { insertStr, readFileString } from './utils';
+import { RgbColor, findClosestColorVar, getAbsColorDelta, hexToRgb, insertStr, invertColorName, isDefined, readFileString, rgb100ToHex } from './utils';
 const md5 = (contents: string) => crypto.createHash('md5').update(contents).digest('hex');
 
 export const renderTypes = ['dot', 'latex', 'ditaa', 'blockdiag', 'asciidoc', 'refgraph', 'dynamic-svg'] as const;
@@ -18,7 +19,10 @@ type RenderType = typeof renderTypes[number];
 const svgTags = ['text', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon'] as const;
 
 const svgStyleTags = ['fill', 'stroke'] as const;
-const svgStyleRegex = new RegExp(`(?:${svgStyleTags.join('|')})=".*?"`, 'g');
+const regQotedStr = '(?:"|\').*?(?:"|\')';
+const svgStyleRegex = new RegExp(`(?:${svgStyleTags.join('|')})=${regQotedStr}`, 'g');
+const rgbRegex = /rgb\(|\)| |%/g;
+const propertyNameRegex = /.*=|"|'/g;
 
 type SSMap = Map<string, string>;
 
@@ -113,7 +117,7 @@ const svgColors = [
         ['aquamarine',    '#7FFFD4']], '--g-color-light-cyan']
 ];
 let colorToVar: SSMap;
-let hexColorToVar: SSMap;
+let rgbColorToVar: Map<RgbColor, string>;
 
 
 const svgShades = [
@@ -152,7 +156,7 @@ const svgShades = [
 
 ];
 let shadeToVar: SSMap;
-let hexShadeToVar: SSMap;
+let rgbShadeToVar: Map<RgbColor, string>;
 //@ts-format-ignore-endregion
 
 const presets = new Map<string, Map<string, string>>([
@@ -162,69 +166,72 @@ const presets = new Map<string, Map<string, string>>([
     ])]
 ]);
 
-function transformColorMap(colorList: (string | string[][])[][]): { colorToVar: SSMap, hexToVar: SSMap } {
+function transformColorMap(colorList: (string | string[][])[][]): { colorToVar: SSMap, hexToVar: Map<RgbColor, string> } {
     const colorToVar = new Map<string, string>();
-    const hexToVar = new Map<string, string>();
+    const rgbToVar = new Map<RgbColor, string>();
     for (const entry of colorList) {
         const colorVar = entry[1] as string;
         for (const colorEntries of entry[0]) {
-            for (const  color of colorEntries) {
-                const colorLower = color.toLowerCase();
-                if (colorLower.startsWith('#')) {
-                    hexToVar.set(colorLower, colorVar);
+            for (const color of colorEntries) {
+                if (color.startsWith('#')) {
+                    rgbToVar.set(hexToRgb(color)!, colorVar);
                 }
-                colorToVar.set(colorLower, colorVar);
+                colorToVar.set(color.toLowerCase(), colorVar);
             }
         }
     }
     return {
         colorToVar: colorToVar,
-        hexToVar: hexToVar
+        hexToVar: rgbToVar
     };
 }
 
-function mapColor(color: string, mapClosestColor: boolean): { color: string | undefined, type: ColorType } {
+function mapColor(color: string, findClosestColor: boolean): { color: string | undefined, type: ColorType } {
 
-    if (!shadeToVar) {
+    if (!isDefined(shadeToVar)) {
         const transformed = transformColorMap(svgShades);
         shadeToVar = transformed.colorToVar;
-        hexShadeToVar = transformed.hexToVar;
+        rgbShadeToVar = transformed.hexToVar;
     }
 
-    if (!colorToVar) {
+    if (!isDefined(colorToVar)) {
         const transformed = transformColorMap(svgColors);
         colorToVar = transformed.colorToVar;
-        hexColorToVar = transformed.hexToVar;
+        rgbColorToVar = transformed.hexToVar;
     }
 
-    const remappedColor = colorToVar.get(color);
-    const remappedShade = shadeToVar.get(color);
-    if (remappedColor) {
+    let colorVar = colorToVar.get(color);
+    let shadeVar = shadeToVar.get(color);
+
+    if (!isDefined(colorVar) && !isDefined(shadeVar) && findClosestColor) {
+        const rgbColor = hexToRgb(color);
+        if (isDefined(rgbColor)) {
+            const closestColor = findClosestColorVar(rgbColor!, rgbColorToVar);
+            const closestShade = findClosestColorVar(rgbColor!, rgbShadeToVar);
+            if (closestColor.delta < closestShade.delta) {
+                colorVar = closestColor.var;
+            } else {
+                shadeVar = closestShade.var;
+            }
+        }
+    }
+
+    if (isDefined(colorVar)) {
         return {
-            color: remappedColor,
+            color: colorVar,
             type: 'color'
         };
-    } else if (remappedShade) {
+    } else if (isDefined(shadeVar)) {
         return {
-            color: remappedShade,
+            color: shadeVar,
             type: 'shade'
         };
     }
+
     return {
         color: undefined,
         type: 'unknown'
     };
-}
-
-function invertColor(color: string | undefined) {
-    if (color === undefined) {
-        return undefined;
-    }
-    if (color.contains('light')) {
-        return color.replace('light', 'dark');
-    } else {
-        return color.replace('dark', 'light');
-    }
 }
 
 export function getTempDir(type: RenderType): string {
@@ -335,34 +342,34 @@ export class Processors {
 
                 for (const svgStyleTag of svgStyleTags) {
 
-                    const tagStyle = styleSubstring.match(`${svgStyleTag}=".*?"`);
+                    const tagStyle = styleSubstring.match(`${svgStyleTag}=${regQotedStr}`);
 
                     if (!tagStyle?.length && svgStyleTag == 'stroke' && !conversionParams.get(`${svgTag}-implicit-stroke`)) {
                         continue;
                     }
 
-                    let tagColor = tagStyle?.length ? tagStyle[0].replaceAll(/.*=|"/g, '') : 'black';
+                    let tagColor = tagStyle?.length ? tagStyle[0].replaceAll(propertyNameRegex, '') : 'black';
 
-                    if(tagColor.startsWith('rgb')) {
-                        const colors = tagColor.replaceAll(/rgb\(|\)| |%/g, '').split(',');
-                        let hexString = '#';
-                        for(const color of colors) {
-                            const component = Math.floor(parseInt(color) / 100.0 * 255).toString(16);
-                            hexString += (component.length == 1 ? `0${component}` : component);
-                        }
-                        tagColor = hexString;
+                    if (tagColor.startsWith('rgb')) {
+                        tagColor = rgb100ToHex(tagColor.replaceAll(rgbRegex, '').split(','));
                     }
 
-                    const rcolor = mapColor(tagColor, false);
+                    const params = (conversionParams.get(`${svgTag}-${svgStyleTag}`) || '').split(',');
 
-                    if (!rcolor.color) {
-                        // we were unable to parse color
+                    if(params.contains('skip')) {
+                        // skip it, use the original value
                         newStyle += `${svgStyleTag}:${tagColor};`;
                         continue;
                     }
 
-                    const params = (conversionParams.get(`${svgTag}-${svgStyleTag}`) || '').split(',');
-                    let skip = false;
+                    const rcolor = mapColor(tagColor, !params.contains('original-colors'));
+
+                    if (!rcolor.color) {
+                        // we were unable to parse color, use original value
+                        newStyle += `${svgStyleTag}:${tagColor};`;
+                        continue;
+                    }
+
                     for (const param of params) {
                         switch (param) {
                             case 'keep-color':
@@ -376,28 +383,21 @@ export class Processors {
                                 break;
                             case 'invert-color':
                                 if (rcolor.type === 'color') {
-                                    rcolor.color = invertColor(rcolor.color);
+                                    rcolor.color = invertColorName(rcolor.color);
                                 }
                                 break;
                             case 'invert-shade':
                                 if (rcolor.type === 'shade') {
-                                    rcolor.color = invertColor(rcolor.color);
+                                    rcolor.color = invertColorName(rcolor.color);
                                 }
                                 break;
                             case 'invert-all':
-                                rcolor.color = invertColor(rcolor.color);
-                                break;
-                            case 'skip':
-                                skip = true;
+                                rcolor.color = invertColorName(rcolor.color);
                                 break;
                         }
-                        if (skip) {
-                            break;
-                        }
                     }
-                    if (!skip) {
-                        newStyle += `${svgStyleTag}:var(${rcolor.color});`;
-                    }
+                    
+                    newStyle += `${svgStyleTag}:var(${rcolor.color});`;
                 }
 
                 newStyle += `" ${additionalTag} `;
@@ -415,6 +415,7 @@ export class Processors {
 
     private parseFrontMatter(source: string, outputFile: string) {
         const conversionParams = new Map<string, string>();
+        
         let referenceName = '';
         let preset;
 
@@ -462,7 +463,7 @@ export class Processors {
 
         }
         return {
-            cleanedSource: source.replace(/^\n|\n$/g, ''), // only trim newlines
+            cleanedSource: source.replace(/^\n|\n$/g, ''), // trim newlines
             extras: conversionParams
         };
     }

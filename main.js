@@ -80,11 +80,59 @@ var crypto = __toESM(require("crypto"));
 
 // src/utils.ts
 var fs = __toESM(require("fs"));
+var hexExtractRegex = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i;
 function readFileString(path2) {
   return fs.readFileSync(path2).toString();
 }
 function insertStr(str, start, newSubStr) {
   return str.slice(0, start) + newSubStr + str.slice(start);
+}
+function rgb100ToHex(colors) {
+  let hexString = "#";
+  for (const color of colors) {
+    const component = Math.floor(parseInt(color) / 100 * 255).toString(16);
+    hexString += component.length == 1 ? `0${component}` : component;
+  }
+  return hexString;
+}
+function hexToRgb(color) {
+  const colors = hexExtractRegex.exec(color);
+  return colors ? {
+    r: parseInt(colors[1], 16),
+    g: parseInt(colors[2], 16),
+    b: parseInt(colors[3], 16)
+  } : void 0;
+}
+function getAbsColorDelta(color1, color2) {
+  return Math.abs(color1.r - color2.r) + Math.abs(color1.g - color2.g) + Math.abs(color1.b - color2.b);
+}
+function findClosestColorVar(color, colorMap) {
+  let minimumDelta = Infinity;
+  let closestColorVar = "";
+  for (const [colorRgb, colorVar] of colorMap) {
+    const delta = getAbsColorDelta(color, colorRgb);
+    if (delta < minimumDelta) {
+      minimumDelta = delta;
+      closestColorVar = colorVar;
+    }
+  }
+  return {
+    var: closestColorVar,
+    delta: minimumDelta
+  };
+}
+function isDefined(val) {
+  return !(val === void 0 || val === null);
+}
+function invertColorName(color) {
+  if (color === void 0) {
+    return void 0;
+  }
+  if (color.contains("light")) {
+    return color.replace("light", "dark");
+  } else {
+    return color.replace("dark", "light");
+  }
 }
 
 // src/processors.ts
@@ -92,7 +140,10 @@ var md5 = (contents) => crypto.createHash("md5").update(contents).digest("hex");
 var renderTypes = ["dot", "latex", "ditaa", "blockdiag", "asciidoc", "refgraph", "dynamic-svg"];
 var svgTags = ["text", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon"];
 var svgStyleTags = ["fill", "stroke"];
-var svgStyleRegex = new RegExp(`(?:${svgStyleTags.join("|")})=".*?"`, "g");
+var regQotedStr = `(?:"|').*?(?:"|')`;
+var svgStyleRegex = new RegExp(`(?:${svgStyleTags.join("|")})=${regQotedStr}`, "g");
+var rgbRegex = /rgb\(|\)| |%/g;
+var propertyNameRegex = /.*=|"|'/g;
 var svgColors = [
   // dark colors
   [[
@@ -201,7 +252,7 @@ var svgColors = [
   ], "--g-color-light-cyan"]
 ];
 var colorToVar;
-var hexColorToVar;
+var rgbColorToVar;
 var svgShades = [
   // gray colors
   [[
@@ -263,7 +314,7 @@ var svgShades = [
   // #928374
 ];
 var shadeToVar;
-var hexShadeToVar;
+var rgbShadeToVar;
 var presets = /* @__PURE__ */ new Map([
   ["math-graph", /* @__PURE__ */ new Map([
     ["ellipse-fill", "keep-shade"],
@@ -272,45 +323,56 @@ var presets = /* @__PURE__ */ new Map([
 ]);
 function transformColorMap(colorList) {
   const colorToVar2 = /* @__PURE__ */ new Map();
-  const hexToVar = /* @__PURE__ */ new Map();
+  const rgbToVar = /* @__PURE__ */ new Map();
   for (const entry of colorList) {
     const colorVar = entry[1];
     for (const colorEntries of entry[0]) {
       for (const color of colorEntries) {
-        const colorLower = color.toLowerCase();
-        if (colorLower.startsWith("#")) {
-          hexToVar.set(colorLower, colorVar);
+        if (color.startsWith("#")) {
+          rgbToVar.set(hexToRgb(color), colorVar);
         }
-        colorToVar2.set(colorLower, colorVar);
+        colorToVar2.set(color.toLowerCase(), colorVar);
       }
     }
   }
   return {
     colorToVar: colorToVar2,
-    hexToVar
+    hexToVar: rgbToVar
   };
 }
-function mapColor(color, mapClosestColor) {
-  if (!shadeToVar) {
+function mapColor(color, findClosestColor) {
+  if (!isDefined(shadeToVar)) {
     const transformed = transformColorMap(svgShades);
     shadeToVar = transformed.colorToVar;
-    hexShadeToVar = transformed.hexToVar;
+    rgbShadeToVar = transformed.hexToVar;
   }
-  if (!colorToVar) {
+  if (!isDefined(colorToVar)) {
     const transformed = transformColorMap(svgColors);
     colorToVar = transformed.colorToVar;
-    hexColorToVar = transformed.hexToVar;
+    rgbColorToVar = transformed.hexToVar;
   }
-  const remappedColor = colorToVar.get(color);
-  const remappedShade = shadeToVar.get(color);
-  if (remappedColor) {
+  let colorVar = colorToVar.get(color);
+  let shadeVar = shadeToVar.get(color);
+  if (!isDefined(colorVar) && !isDefined(shadeVar) && findClosestColor) {
+    const rgbColor = hexToRgb(color);
+    if (isDefined(rgbColor)) {
+      const closestColor = findClosestColorVar(rgbColor, rgbColorToVar);
+      const closestShade = findClosestColorVar(rgbColor, rgbShadeToVar);
+      if (closestColor.delta < closestShade.delta) {
+        colorVar = closestColor.var;
+      } else {
+        shadeVar = closestShade.var;
+      }
+    }
+  }
+  if (isDefined(colorVar)) {
     return {
-      color: remappedColor,
+      color: colorVar,
       type: "color"
     };
-  } else if (remappedShade) {
+  } else if (isDefined(shadeVar)) {
     return {
-      color: remappedShade,
+      color: shadeVar,
       type: "shade"
     };
   }
@@ -318,16 +380,6 @@ function mapColor(color, mapClosestColor) {
     color: void 0,
     type: "unknown"
   };
-}
-function invertColor(color) {
-  if (color === void 0) {
-    return void 0;
-  }
-  if (color.contains("light")) {
-    return color.replace("light", "dark");
-  } else {
-    return color.replace("dark", "light");
-  }
 }
 function getTempDir(type) {
   return path.join(os.tmpdir(), `obsidian-${type}`);
@@ -414,27 +466,24 @@ var Processors = class {
         let newStyle = 'style="';
         let additionalTag = "";
         for (const svgStyleTag of svgStyleTags) {
-          const tagStyle = styleSubstring.match(`${svgStyleTag}=".*?"`);
+          const tagStyle = styleSubstring.match(`${svgStyleTag}=${regQotedStr}`);
           if (!(tagStyle == null ? void 0 : tagStyle.length) && svgStyleTag == "stroke" && !conversionParams.get(`${svgTag}-implicit-stroke`)) {
             continue;
           }
-          let tagColor = (tagStyle == null ? void 0 : tagStyle.length) ? tagStyle[0].replaceAll(/.*=|"/g, "") : "black";
+          let tagColor = (tagStyle == null ? void 0 : tagStyle.length) ? tagStyle[0].replaceAll(propertyNameRegex, "") : "black";
           if (tagColor.startsWith("rgb")) {
-            const colors = tagColor.replaceAll(/rgb\(|\)| |%/g, "").split(",");
-            let hexString = "#";
-            for (const color of colors) {
-              const component = Math.floor(parseInt(color) / 100 * 255).toString(16);
-              hexString += component.length == 1 ? `0${component}` : component;
-            }
-            tagColor = hexString;
+            tagColor = rgb100ToHex(tagColor.replaceAll(rgbRegex, "").split(","));
           }
-          const rcolor = mapColor(tagColor, false);
+          const params = (conversionParams.get(`${svgTag}-${svgStyleTag}`) || "").split(",");
+          if (params.contains("skip")) {
+            newStyle += `${svgStyleTag}:${tagColor};`;
+            continue;
+          }
+          const rcolor = mapColor(tagColor, !params.contains("original-colors"));
           if (!rcolor.color) {
             newStyle += `${svgStyleTag}:${tagColor};`;
             continue;
           }
-          const params = (conversionParams.get(`${svgTag}-${svgStyleTag}`) || "").split(",");
-          let skip = false;
           for (const param of params) {
             switch (param) {
               case "keep-color":
@@ -448,28 +497,20 @@ var Processors = class {
                 break;
               case "invert-color":
                 if (rcolor.type === "color") {
-                  rcolor.color = invertColor(rcolor.color);
+                  rcolor.color = invertColorName(rcolor.color);
                 }
                 break;
               case "invert-shade":
                 if (rcolor.type === "shade") {
-                  rcolor.color = invertColor(rcolor.color);
+                  rcolor.color = invertColorName(rcolor.color);
                 }
                 break;
               case "invert-all":
-                rcolor.color = invertColor(rcolor.color);
-                break;
-              case "skip":
-                skip = true;
+                rcolor.color = invertColorName(rcolor.color);
                 break;
             }
-            if (skip) {
-              break;
-            }
           }
-          if (!skip) {
-            newStyle += `${svgStyleTag}:var(${rcolor.color});`;
-          }
+          newStyle += `${svgStyleTag}:var(${rcolor.color});`;
         }
         newStyle += `" ${additionalTag} `;
         svgSource = insertStr(svgSource, currentIndex, newStyle);
@@ -522,7 +563,7 @@ var Processors = class {
     }
     return {
       cleanedSource: source.replace(/^\n|\n$/g, ""),
-      // only trim newlines
+      // trim newlines
       extras: conversionParams
     };
   }
