@@ -480,7 +480,7 @@ var Processors = class {
           execParams: [
             {
               path: this.pluginSettings.plantumlPath,
-              options: ["-nbthread", "auto", "-failfast2", "-tsvg", "-nometadata", "-overwrite"]
+              options: ["-nbthread", "auto", "-failfast2", "-tsvg", "-nometadata", "-overwrite", inputFile]
             }
           ],
           skipDynamicSvg: false
