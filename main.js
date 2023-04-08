@@ -47,7 +47,8 @@ var DEFAULT_SETTINGS = {
   pdf2svgPath: "pdf2svg",
   blockdiagPath: "blockdiag",
   ditaaPath: "ditaa",
-  asciidocPath: "asciidoctor"
+  asciidocPath: "asciidoctor",
+  plantumlPath: "plantuml"
 };
 var GraphvizSettingsTab = class extends import_obsidian.PluginSettingTab {
   constructor(plugin) {
@@ -137,7 +138,16 @@ function invertColorName(color) {
 
 // src/processors.ts
 var md5 = (contents) => crypto.createHash("md5").update(contents).digest("hex");
-var renderTypes = ["dot", "latex", "ditaa", "blockdiag", "asciidoc", "refgraph", "dynamic-svg"];
+var renderTypes = [
+  "dot",
+  "latex",
+  "ditaa",
+  "blockdiag",
+  "asciidoc",
+  "refgraph",
+  "dynamic-svg",
+  "plantuml"
+];
 var svgTags = ["text", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon"];
 var svgStyleTags = ["fill", "stroke"];
 var regQotedStr = `(?:"|').*?(?:"|')`;
@@ -319,6 +329,24 @@ var presets = /* @__PURE__ */ new Map([
   ["math-graph", /* @__PURE__ */ new Map([
     ["ellipse-fill", "keep-shade"],
     ["text-fill", "keep-shade"]
+  ])],
+  ["default-latex", /* @__PURE__ */ new Map([
+    ["inverted", "true"],
+    ["width", "100%"],
+    ["doc-start", "\\documentclass[preview,class=article]{standalone}"],
+    ["doc-end", "\\end{document}"]
+  ])],
+  ["default-tikz", /* @__PURE__ */ new Map([
+    ["inverted", "true"],
+    ["width", "100%"],
+    ["doc-start", "\\documentclass[tikz]{standalone}\\usepackage{tikz}\\begin{document}"],
+    ["doc-end", "\\end{document}"]
+  ])],
+  ["default-plantuml", /* @__PURE__ */ new Map([
+    ["inverted", "true"],
+    ["width", "100%"],
+    ["doc-start", "@startuml"],
+    ["doc-end", "@enduml"]
   ])]
 ]);
 function transformColorMap(colorList) {
@@ -391,20 +419,77 @@ var Processors = class {
     this.vaultAdapter = plugin.app.vault.adapter;
     this.metadataCache = plugin.app.metadataCache;
   }
-  getRendererParameters(type, sourceFile, outputFile) {
+  getRendererParameters(type, inputFile, outputFile) {
     switch (type) {
       case "dot":
-        return [this.pluginSettings.dotPath, ["-Tsvg", sourceFile, "-o", outputFile], false];
+        return {
+          execParams: [
+            {
+              path: this.pluginSettings.dotPath,
+              options: ["-Tsvg", inputFile, "-o", outputFile]
+            }
+          ],
+          skipDynamicSvg: false
+        };
       case "latex":
-        return [this.pluginSettings.pdflatexPath, ["-shell-escape", "-output-directory", getTempDir(type), sourceFile], false];
+        return {
+          execParams: [
+            {
+              path: this.pluginSettings.pdflatexPath,
+              options: ["-shell-escape", "-output-directory", getTempDir(type), inputFile]
+            },
+            {
+              path: this.pluginSettings.pdf2svgPath,
+              options: [`${inputFile}.pdf`, outputFile]
+            }
+          ],
+          skipDynamicSvg: false
+        };
       case "ditaa":
-        return [this.pluginSettings.ditaaPath, [sourceFile, "--transparent", "--svg", "--overwrite"], false];
+        return {
+          execParams: [
+            {
+              path: this.pluginSettings.ditaaPath,
+              options: [inputFile, "--transparent", "--svg", "--overwrite"]
+            }
+          ],
+          skipDynamicSvg: false
+        };
       case "blockdiag":
-        return [this.pluginSettings.blockdiagPath, ["--antialias", "-Tsvg", sourceFile, "-o", outputFile], false];
+        return {
+          execParams: [
+            {
+              path: this.pluginSettings.blockdiagPath,
+              options: ["--antialias", "-Tsvg", inputFile, "-o", outputFile]
+            }
+          ],
+          skipDynamicSvg: false
+        };
       case "asciidoc":
-        return [this.pluginSettings.asciidocPath, ["-e", sourceFile, "-o", outputFile], true];
+        return {
+          execParams: [
+            {
+              path: this.pluginSettings.asciidocPath,
+              options: ["-e", inputFile, "-o", outputFile]
+            }
+          ],
+          skipDynamicSvg: true
+        };
+      case "plantuml":
+        return {
+          execParams: [
+            {
+              path: this.pluginSettings.plantumlPath,
+              options: ["-nbthread", "auto", "-failfast2", "-tsvg", "-nometadata", "-overwrite"]
+            }
+          ],
+          skipDynamicSvg: false
+        };
       default:
-        return ["", [], true];
+        return {
+          execParams: [],
+          skipDynamicSvg: true
+        };
     }
   }
   getProcessorForType(type) {
@@ -431,13 +516,12 @@ var Processors = class {
     });
   }
   async writeRenderedFile(inputFile, outputFile, type, conversionParams) {
-    const [cmdPath, params, skipDynamicSvg] = this.getRendererParameters(type, inputFile, outputFile);
-    await this.spawnProcess(cmdPath, params);
-    if (type === "latex") {
-      await this.spawnProcess(this.pluginSettings.pdf2svgPath, [`${inputFile}.pdf`, outputFile]);
+    const renderer = this.getRendererParameters(type, inputFile, outputFile);
+    for (const process of renderer.execParams) {
+      await this.spawnProcess(process.path, process.options);
     }
     const renderedContent = readFileString(outputFile);
-    if (!skipDynamicSvg) {
+    if (!renderer.skipDynamicSvg) {
       const svg = this.makeDynamicSvg(renderedContent, conversionParams);
       fs2.writeFileSync(outputFile, svg.svgData);
       return svg;
@@ -522,48 +606,55 @@ var Processors = class {
       extras: conversionParams
     };
   }
-  parseFrontMatter(source, outputFile) {
+  loadPreset(presetName, conversionParams) {
+    const preset = presets.get(presetName);
+    if (preset) {
+      for (const [preset_key, preset_value] of preset) {
+        conversionParams.set(preset_key, preset_value);
+      }
+    }
+  }
+  preprocessSource(type, source, outputFile) {
     const conversionParams = /* @__PURE__ */ new Map();
-    let referenceName = "";
-    let preset;
+    this.loadPreset(`default-${type}`, conversionParams);
     if (source.startsWith("---")) {
       const lastIndex = source.indexOf("---", 3);
       const frontMatter = source.substring(3, lastIndex);
       const parameters = frontMatter.trim().split("\n");
       for (const parameter of parameters) {
         const parameter_split = parameter.split(":");
+        if (parameter_split.length == 1) {
+          parameter_split.push("1");
+        }
         const parameter_name = parameter_split[0].trim();
         const parameter_value = parameter_split[1].trim();
-        switch (parameter_name) {
-          case "ref-name":
-          case "graph-name":
-          case "name":
-            referenceName = parameter_value;
-            break;
-          case "preset":
-            preset = presets.get(parameter_value);
-            if (!preset) {
-              break;
-            }
-            for (const [preset_key, preset_value] of preset) {
-              conversionParams.set(preset_key, preset_value);
-            }
-            break;
-          default:
-            conversionParams.set(parameter_name, parameter_value);
+        if (parameter_name === "preset") {
+          this.loadPreset(parameter_value, conversionParams);
+        } else {
+          conversionParams.set(parameter_name, parameter_value);
         }
       }
       source = source.substring(lastIndex + 3);
-      if (referenceName.length > 0) {
-        this.referenceGraphMap.set(referenceName, {
-          sourcePath: outputFile,
-          extras: conversionParams
-        });
+    }
+    for (const [param_key, param_value] of conversionParams) {
+      switch (param_key) {
+        case "ref-name":
+        case "graph-name":
+        case "name":
+          this.referenceGraphMap.set(param_value, {
+            sourcePath: outputFile,
+            extras: conversionParams
+          });
+          break;
+        case "doc-start":
+          source = param_value + "\n" + source;
+          break;
+        case "doc-end":
+          source = source + "\n" + param_value;
       }
     }
     return {
-      cleanedSource: source.replace(/^\n|\n$/g, ""),
-      // trim newlines
+      source,
       extras: conversionParams
     };
   }
@@ -586,16 +677,17 @@ var Processors = class {
     if (!fs2.existsSync(temp_dir)) {
       fs2.mkdirSync(temp_dir);
     }
-    const graphData = this.parseFrontMatter(source, outputFile);
+    const graphData = this.preprocessSource(type, source, outputFile);
     if (type === "dynamic-svg") {
-      const resolvedLink = (_a = this.metadataCache.getFirstLinkpathDest(graphData.cleanedSource.slice(2, -2), "")) == null ? void 0 : _a.path;
+      graphData.source = graphData.source.trim();
+      const resolvedLink = (_a = this.metadataCache.getFirstLinkpathDest(graphData.source.slice(2, -2), "")) == null ? void 0 : _a.path;
       if (!resolvedLink) {
-        throw Error(`Invalid link: ${graphData.cleanedSource}`);
+        throw Error(`Invalid link: ${graphData.source}`);
       }
       return this.makeDynamicSvg((await this.vaultAdapter.read(resolvedLink)).toString(), graphData.extras);
     }
     if (!fs2.existsSync(inputFile)) {
-      fs2.writeFileSync(inputFile, graphData.cleanedSource);
+      fs2.writeFileSync(inputFile, graphData.source);
     } else if (fs2.existsSync(outputFile)) {
       return {
         svgData: readFileString(outputFile),

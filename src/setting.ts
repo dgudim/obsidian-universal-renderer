@@ -8,6 +8,7 @@ export type GraphvizSettings = {
   blockdiagPath: string;
   ditaaPath: string;
   asciidocPath: string;
+  plantumlPath: string;
 }
 
 export const DEFAULT_SETTINGS: GraphvizSettings = {
@@ -17,6 +18,7 @@ export const DEFAULT_SETTINGS: GraphvizSettings = {
   blockdiagPath: 'blockdiag',
   ditaaPath: 'ditaa',
   asciidocPath: 'asciidoctor',
+  plantumlPath: 'plantuml',
 };
 
 export class GraphvizSettingsTab extends PluginSettingTab {
