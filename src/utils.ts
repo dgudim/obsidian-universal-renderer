@@ -42,9 +42,9 @@ export function getMagnitudeColorDelta(color1: RgbColor, color2: RgbColor): numb
 
 export function getColorDelta(color1: RgbColor, color2: RgbColor): RgbColor {
     return {
-        r: color2.r - color1.r,
-        g: color2.g - color1.g,
-        b: color2.b - color1.b
+        r: color1.r - color2.r,
+        g: color1.g - color2.g,
+        b: color1.b - color2.b
     };
 }
 

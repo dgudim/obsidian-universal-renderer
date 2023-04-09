@@ -109,9 +109,9 @@ function getMagnitudeColorDelta(color1, color2) {
 }
 function getColorDelta(color1, color2) {
   return {
-    r: color2.r - color1.r,
-    g: color2.g - color1.g,
-    b: color2.b - color1.b
+    r: color1.r - color2.r,
+    g: color1.g - color2.g,
+    b: color1.b - color2.b
   };
 }
 function findClosestColorVar(targetColor, colorMap) {
