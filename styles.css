@@ -309,10 +309,10 @@
 
 
 
-    --g-color-light-orange:  var(--faded-orange_r);
-    --g-color-light-orange_r:var(--faded-orange_g);
-    --g-color-light-orange_g:var(--faded-orange_b);
-    --g-color-light-orange_b:var(--faded-orange);
+    --g-color-light-orange:  var(--faded-orange);
+    --g-color-light-orange_r:var(--faded-orange_r);
+    --g-color-light-orange_g:var(--faded-orange_g);
+    --g-color-light-orange_b:var(--faded-orange_b);
 
     --g-color-orange:        var(--neutral-orange);
     --g-color-orange_r:      var(--neutral-orange_r);
