@@ -1,3 +1,4 @@
+/* eslint-disable no-case-declarations */
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable no-constant-condition */
 import { DataAdapter, MarkdownPostProcessorContext, MetadataCache } from 'obsidian';
@@ -10,7 +11,7 @@ import GraphvizPlugin from './main';
 import { GraphvizSettings } from './setting';
 
 import * as crypto from 'crypto';
-import { RgbColor, findClosestColorVar, hexToRgb, insertStr, invertColorName, isDefined, readFileString, rgb100ToHex } from './utils';
+import { RgbColor, findClosestColorVar, getColorDelta, hexToRgb, insertStr, invertColorName, isDefined, numToStrWithSign, readFileString, rgb100ToHex } from './utils';
 const md5 = (contents: string) => crypto.createHash('md5').update(contents).digest('hex');
 
 export const renderTypes = [
@@ -208,7 +209,10 @@ function transformColorMap(colorList: (string | string[][])[][]): { colorToVar: 
     };
 }
 
-function mapColor(color: string, findClosestColor: boolean): { color: string | undefined, type: ColorType } {
+function mapColor(sourceColor: string, findClosestColor: boolean): {
+    colorVar: string | undefined, sourceColor: RgbColor | undefined,
+    type: ColorType, delta: number, deltaColor: RgbColor | undefined
+} {
 
     if (!isDefined(shadeToVar)) {
         const transformed = transformColorMap(svgShades);
@@ -222,37 +226,52 @@ function mapColor(color: string, findClosestColor: boolean): { color: string | u
         rgbColorToVar = transformed.hexToVar;
     }
 
-    let colorVar = colorToVar.get(color);
-    let shadeVar = shadeToVar.get(color);
+    let colorVar = colorToVar.get(sourceColor);
+    let shadeVar = shadeToVar.get(sourceColor);
 
-    if (!isDefined(colorVar) && !isDefined(shadeVar) && findClosestColor) {
-        const rgbColor = hexToRgb(color);
-        if (isDefined(rgbColor)) {
-            const closestColor = findClosestColorVar(rgbColor!, rgbColorToVar);
-            const closestShade = findClosestColorVar(rgbColor!, rgbShadeToVar);
-            if (closestColor.delta < closestShade.delta) {
-                colorVar = closestColor.var;
-            } else {
-                shadeVar = closestShade.var;
-            }
+    let delta = 0;
+    let deltaColor = undefined;
+
+    const sourceRgbColor = hexToRgb(sourceColor);
+
+    if (!isDefined(colorVar) && !isDefined(shadeVar) && isDefined(sourceRgbColor) && findClosestColor) {
+        const closestColor = findClosestColorVar(sourceRgbColor!, rgbColorToVar);
+        const closestShade = findClosestColorVar(sourceRgbColor!, rgbShadeToVar);
+        if (closestColor.delta < closestShade.delta) {
+            colorVar = closestColor.var;
+            delta = closestColor.delta;
+            deltaColor = getColorDelta(sourceRgbColor!, closestColor.foundColor);
+        } else {
+            shadeVar = closestShade.var;
+            delta = closestShade.delta;
+            deltaColor = getColorDelta(sourceRgbColor!, closestShade.foundColor);
         }
     }
 
     if (isDefined(colorVar)) {
         return {
-            color: colorVar,
-            type: 'color'
+            colorVar: colorVar,
+            type: 'color',
+            delta: delta,
+            deltaColor: deltaColor,
+            sourceColor: sourceRgbColor
         };
     } else if (isDefined(shadeVar)) {
         return {
-            color: shadeVar,
-            type: 'shade'
+            colorVar: shadeVar,
+            type: 'shade',
+            delta: delta,
+            deltaColor: deltaColor,
+            sourceColor: sourceRgbColor
         };
     }
 
     return {
-        color: undefined,
-        type: 'unknown'
+        colorVar: undefined,
+        type: 'unknown',
+        delta: 0,
+        deltaColor: undefined,
+        sourceColor: sourceRgbColor
     };
 }
 
@@ -441,7 +460,7 @@ export class Processors {
 
                     const rcolor = mapColor(tagColor, !params.contains('original-colors'));
 
-                    if (!rcolor.color) {
+                    if (!rcolor.colorVar) {
                         // we were unable to parse color, use original value
                         newStyle += `${svgStyleTag}:${tagColor};`;
                         continue;
@@ -460,21 +479,47 @@ export class Processors {
                                 break;
                             case 'invert-color':
                                 if (rcolor.type === 'color') {
-                                    rcolor.color = invertColorName(rcolor.color);
+                                    rcolor.colorVar = invertColorName(rcolor.colorVar);
                                 }
                                 break;
                             case 'invert-shade':
                                 if (rcolor.type === 'shade') {
-                                    rcolor.color = invertColorName(rcolor.color);
+                                    rcolor.colorVar = invertColorName(rcolor.colorVar);
                                 }
                                 break;
                             case 'invert-all':
-                                rcolor.color = invertColorName(rcolor.color);
+                                rcolor.colorVar = invertColorName(rcolor.colorVar);
                                 break;
                         }
                     }
 
-                    newStyle += `${svgStyleTag}:var(${rcolor.color});`;
+                    const mixMultiplier = parseFloat(conversionParams.get('mix-multiplier') || '0');
+
+                    if (mixMultiplier && rcolor.delta) {
+
+                        const mixMode = conversionParams.get('mix-mode') || '';
+                        const inverseMixMultiplier = 1 - mixMultiplier;
+
+                        switch (mixMode) {
+                            case 'mix':
+                                const col = rcolor.sourceColor!;
+                                newStyle += `${svgStyleTag}:rgb(
+                                    clamp(0, calc(${col.r * mixMultiplier} + ${inverseMixMultiplier} * var(${rcolor.colorVar}_r)), 255), 
+                                    clamp(0, calc(${col.g * mixMultiplier} + ${inverseMixMultiplier} * var(${rcolor.colorVar}_g)), 255), 
+                                    clamp(0, calc(${col.b * mixMultiplier} + ${inverseMixMultiplier} * var(${rcolor.colorVar}_b)), 255))`;
+                                break;
+                            case 'delta':
+                            default:
+                                const cdlt = rcolor.deltaColor!;
+                                newStyle += `${svgStyleTag}:rgb(
+                                    clamp(0, calc(var(${rcolor.colorVar}_r) + ${cdlt.r * mixMultiplier}), 255), 
+                                    clamp(0, calc(var(${rcolor.colorVar}_g) + ${cdlt.g * mixMultiplier}), 255), 
+                                    clamp(0, calc(var(${rcolor.colorVar}_b) + ${cdlt.b * mixMultiplier}), 255))`;
+                        }
+                    } else {
+                        newStyle += `${svgStyleTag}:var(${rcolor.colorVar});`;
+                    }
+
                 }
 
                 newStyle += `" ${additionalTag} `;

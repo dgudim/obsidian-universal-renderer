@@ -34,26 +34,41 @@ export function hexToRgb(color: string): RgbColor | undefined {
     } : undefined;
 }
 
-export function getAbsColorDelta(color1: RgbColor, color2: RgbColor): number {
+export function getMagnitudeColorDelta(color1: RgbColor, color2: RgbColor): number {
     return Math.abs(color1.r - color2.r) +
         Math.abs(color1.g - color2.g) +
         Math.abs(color1.b - color2.b);
 }
 
-export function findClosestColorVar(color: RgbColor, colorMap: Map<RgbColor, string>): { var: string, delta: number } {
+export function getColorDelta(color1: RgbColor, color2: RgbColor): RgbColor {
+    return {
+        r: color2.r - color1.r,
+        g: color2.g - color1.g,
+        b: color2.b - color1.b
+    };
+}
+
+export function findClosestColorVar(targetColor: RgbColor, colorMap: Map<RgbColor, string>): { var: string, foundColor: RgbColor, delta: number } {
     let minimumDelta = Infinity;
     let closestColorVar = '';
+    let closestColor = targetColor;
     for (const [colorRgb, colorVar] of colorMap) {
-        const delta = getAbsColorDelta(color, colorRgb);
+        const delta = getMagnitudeColorDelta(targetColor, colorRgb);
         if (delta < minimumDelta) {
             minimumDelta = delta;
             closestColorVar = colorVar;
+            closestColor = colorRgb;
         }
     }
     return {
         var: closestColorVar,
+        foundColor: closestColor,
         delta: minimumDelta
     };
+}
+
+export function numToStrWithSign(val: number): string {
+    return val > 0 ? `+ ${val}` : `- ${-val}`;
 }
 
 export function isDefined(val: unknown): boolean {

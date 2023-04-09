@@ -104,21 +104,31 @@ function hexToRgb(color) {
     b: parseInt(colors[3], 16)
   } : void 0;
 }
-function getAbsColorDelta(color1, color2) {
+function getMagnitudeColorDelta(color1, color2) {
   return Math.abs(color1.r - color2.r) + Math.abs(color1.g - color2.g) + Math.abs(color1.b - color2.b);
 }
-function findClosestColorVar(color, colorMap) {
+function getColorDelta(color1, color2) {
+  return {
+    r: color2.r - color1.r,
+    g: color2.g - color1.g,
+    b: color2.b - color1.b
+  };
+}
+function findClosestColorVar(targetColor, colorMap) {
   let minimumDelta = Infinity;
   let closestColorVar = "";
+  let closestColor = targetColor;
   for (const [colorRgb, colorVar] of colorMap) {
-    const delta = getAbsColorDelta(color, colorRgb);
+    const delta = getMagnitudeColorDelta(targetColor, colorRgb);
     if (delta < minimumDelta) {
       minimumDelta = delta;
       closestColorVar = colorVar;
+      closestColor = colorRgb;
     }
   }
   return {
     var: closestColorVar,
+    foundColor: closestColor,
     delta: minimumDelta
   };
 }
@@ -368,7 +378,7 @@ function transformColorMap(colorList) {
     hexToVar: rgbToVar
   };
 }
-function mapColor(color, findClosestColor) {
+function mapColor(sourceColor, findClosestColor) {
   if (!isDefined(shadeToVar)) {
     const transformed = transformColorMap(svgShades);
     shadeToVar = transformed.colorToVar;
@@ -379,34 +389,47 @@ function mapColor(color, findClosestColor) {
     colorToVar = transformed.colorToVar;
     rgbColorToVar = transformed.hexToVar;
   }
-  let colorVar = colorToVar.get(color);
-  let shadeVar = shadeToVar.get(color);
-  if (!isDefined(colorVar) && !isDefined(shadeVar) && findClosestColor) {
-    const rgbColor = hexToRgb(color);
-    if (isDefined(rgbColor)) {
-      const closestColor = findClosestColorVar(rgbColor, rgbColorToVar);
-      const closestShade = findClosestColorVar(rgbColor, rgbShadeToVar);
-      if (closestColor.delta < closestShade.delta) {
-        colorVar = closestColor.var;
-      } else {
-        shadeVar = closestShade.var;
-      }
+  let colorVar = colorToVar.get(sourceColor);
+  let shadeVar = shadeToVar.get(sourceColor);
+  let delta = 0;
+  let deltaColor = void 0;
+  const sourceRgbColor = hexToRgb(sourceColor);
+  if (!isDefined(colorVar) && !isDefined(shadeVar) && isDefined(sourceRgbColor) && findClosestColor) {
+    const closestColor = findClosestColorVar(sourceRgbColor, rgbColorToVar);
+    const closestShade = findClosestColorVar(sourceRgbColor, rgbShadeToVar);
+    if (closestColor.delta < closestShade.delta) {
+      colorVar = closestColor.var;
+      delta = closestColor.delta;
+      deltaColor = getColorDelta(sourceRgbColor, closestColor.foundColor);
+    } else {
+      shadeVar = closestShade.var;
+      delta = closestShade.delta;
+      deltaColor = getColorDelta(sourceRgbColor, closestShade.foundColor);
     }
   }
   if (isDefined(colorVar)) {
     return {
-      color: colorVar,
-      type: "color"
+      colorVar,
+      type: "color",
+      delta,
+      deltaColor,
+      sourceColor: sourceRgbColor
     };
   } else if (isDefined(shadeVar)) {
     return {
-      color: shadeVar,
-      type: "shade"
+      colorVar: shadeVar,
+      type: "shade",
+      delta,
+      deltaColor,
+      sourceColor: sourceRgbColor
     };
   }
   return {
-    color: void 0,
-    type: "unknown"
+    colorVar: void 0,
+    type: "unknown",
+    delta: 0,
+    deltaColor: void 0,
+    sourceColor: sourceRgbColor
   };
 }
 function getTempDir(type) {
@@ -564,7 +587,7 @@ var Processors = class {
             continue;
           }
           const rcolor = mapColor(tagColor, !params.contains("original-colors"));
-          if (!rcolor.color) {
+          if (!rcolor.colorVar) {
             newStyle += `${svgStyleTag}:${tagColor};`;
             continue;
           }
@@ -581,20 +604,42 @@ var Processors = class {
                 break;
               case "invert-color":
                 if (rcolor.type === "color") {
-                  rcolor.color = invertColorName(rcolor.color);
+                  rcolor.colorVar = invertColorName(rcolor.colorVar);
                 }
                 break;
               case "invert-shade":
                 if (rcolor.type === "shade") {
-                  rcolor.color = invertColorName(rcolor.color);
+                  rcolor.colorVar = invertColorName(rcolor.colorVar);
                 }
                 break;
               case "invert-all":
-                rcolor.color = invertColorName(rcolor.color);
+                rcolor.colorVar = invertColorName(rcolor.colorVar);
                 break;
             }
           }
-          newStyle += `${svgStyleTag}:var(${rcolor.color});`;
+          const mixMultiplier = parseFloat(conversionParams.get("mix-multiplier") || "0");
+          if (mixMultiplier && rcolor.delta) {
+            const mixMode = conversionParams.get("mix-mode") || "";
+            const inverseMixMultiplier = 1 - mixMultiplier;
+            switch (mixMode) {
+              case "mix":
+                const col = rcolor.sourceColor;
+                newStyle += `${svgStyleTag}:rgb(
+                                    clamp(0, calc(${col.r * mixMultiplier} + ${inverseMixMultiplier} * var(${rcolor.colorVar}_r)), 255), 
+                                    clamp(0, calc(${col.g * mixMultiplier} + ${inverseMixMultiplier} * var(${rcolor.colorVar}_g)), 255), 
+                                    clamp(0, calc(${col.b * mixMultiplier} + ${inverseMixMultiplier} * var(${rcolor.colorVar}_b)), 255))`;
+                break;
+              case "delta":
+              default:
+                const cdlt = rcolor.deltaColor;
+                newStyle += `${svgStyleTag}:rgb(
+                                    clamp(0, calc(var(${rcolor.colorVar}_r) + ${cdlt.r * mixMultiplier}), 255), 
+                                    clamp(0, calc(var(${rcolor.colorVar}_g) + ${cdlt.g * mixMultiplier}), 255), 
+                                    clamp(0, calc(var(${rcolor.colorVar}_b) + ${cdlt.b * mixMultiplier}), 255))`;
+            }
+          } else {
+            newStyle += `${svgStyleTag}:var(${rcolor.colorVar});`;
+          }
         }
         newStyle += `" ${additionalTag} `;
         svgSource = insertStr(svgSource, currentIndex, newStyle);
