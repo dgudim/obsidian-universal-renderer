@@ -161,9 +161,10 @@ var renderTypes = [
 var svgTags = ["text", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon"];
 var svgStyleTags = ["fill", "stroke"];
 var regQotedStr = `(?:"|').*?(?:"|')`;
-var svgStyleRegex = new RegExp(`(?:${svgStyleTags.join("|")})=${regQotedStr}`, "g");
-var rgbRegex = /rgb\(|\)| |%/g;
-var propertyNameRegex = /.*=|"|'/g;
+var svgStyleRegex_g = new RegExp(`(?:${svgStyleTags.join("|")})=${regQotedStr}`, "g");
+var rgbRegex_g = /rgb\(|\)| |%/g;
+var propertyNameRegex_g = /.*=|"|'/g;
+var idRegex_g = new RegExp(`id=${regQotedStr}`, "g");
 var svgColors = [
   // dark colors
   [[
@@ -538,14 +539,14 @@ var Processors = class {
       });
     });
   }
-  async writeRenderedFile(inputFile, outputFile, type, conversionParams) {
+  async writeRenderedFile(inputFile, outputFile, type, conversionParams, hash) {
     const renderer = this.getRendererParameters(type, inputFile, outputFile);
     for (const process of renderer.execParams) {
       await this.spawnProcess(process.path, process.options);
     }
     const renderedContent = readFileString(outputFile);
     if (!renderer.skipDynamicSvg) {
-      const svg = this.makeDynamicSvg(renderedContent, conversionParams);
+      const svg = this.makeDynamicSvg(renderedContent, conversionParams, hash);
       fs2.writeFileSync(outputFile, svg.svgData);
       return svg;
     }
@@ -554,7 +555,7 @@ var Processors = class {
       extras: conversionParams
     };
   }
-  makeDynamicSvg(svgSource, conversionParams) {
+  makeDynamicSvg(svgSource, conversionParams, hash) {
     const width = conversionParams.get("width");
     if (width) {
       svgSource = svgSource.replace("<svg", `<svg style="width: ${width}" `);
@@ -577,9 +578,9 @@ var Processors = class {
           if (!(tagStyle == null ? void 0 : tagStyle.length) && svgStyleTag == "stroke" && !conversionParams.get(`${svgTag}-implicit-stroke`)) {
             continue;
           }
-          let tagColor = (tagStyle == null ? void 0 : tagStyle.length) ? tagStyle[0].replaceAll(propertyNameRegex, "") : "black";
+          let tagColor = (tagStyle == null ? void 0 : tagStyle.length) ? tagStyle[0].replaceAll(propertyNameRegex_g, "") : "black";
           if (tagColor.startsWith("rgb")) {
-            tagColor = rgb100ToHex(tagColor.replaceAll(rgbRegex, "").split(","));
+            tagColor = rgb100ToHex(tagColor.replaceAll(rgbRegex_g, "").split(","));
           }
           const params = (conversionParams.get(`${svgTag}-${svgStyleTag}`) || "").split(",");
           if (params.contains("skip")) {
@@ -645,7 +646,14 @@ var Processors = class {
         svgSource = insertStr(svgSource, currentIndex, newStyle);
       }
     }
-    svgSource = svgSource.replaceAll(svgStyleRegex, "");
+    svgSource = svgSource.replaceAll(svgStyleRegex_g, "");
+    const ids = svgSource.match(idRegex_g);
+    if (ids) {
+      for (const id of ids) {
+        const idc = id.replaceAll(propertyNameRegex_g, "");
+        svgSource = svgSource.replaceAll(idc, `${idc}-${hash}"`);
+      }
+    }
     return {
       svgData: svgSource,
       extras: conversionParams
@@ -729,7 +737,7 @@ var Processors = class {
       if (!resolvedLink) {
         throw Error(`Invalid link: ${graphData.source}`);
       }
-      return this.makeDynamicSvg((await this.vaultAdapter.read(resolvedLink)).toString(), graphData.extras);
+      return this.makeDynamicSvg((await this.vaultAdapter.read(resolvedLink)).toString(), graphData.extras, graph_hash);
     }
     if (!fs2.existsSync(inputFile)) {
       fs2.writeFileSync(inputFile, graphData.source);
@@ -739,7 +747,7 @@ var Processors = class {
         extras: graphData.extras
       };
     }
-    return this.writeRenderedFile(inputFile, outputFile, type, graphData.extras);
+    return this.writeRenderedFile(inputFile, outputFile, type, graphData.extras, graph_hash);
   }
   async imageProcessor(source, el, _, type) {
     try {

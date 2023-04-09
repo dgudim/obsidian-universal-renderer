@@ -11,7 +11,7 @@ import GraphvizPlugin from './main';
 import { GraphvizSettings } from './setting';
 
 import * as crypto from 'crypto';
-import { RgbColor, findClosestColorVar, getColorDelta, hexToRgb, insertStr, invertColorName, isDefined, numToStrWithSign, readFileString, rgb100ToHex } from './utils';
+import { RgbColor, findClosestColorVar, getColorDelta, hexToRgb, insertStr, invertColorName, isDefined, readFileString, rgb100ToHex } from './utils';
 const md5 = (contents: string) => crypto.createHash('md5').update(contents).digest('hex');
 
 export const renderTypes = [
@@ -25,9 +25,10 @@ const svgTags = ['text', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline'
 
 const svgStyleTags = ['fill', 'stroke'] as const;
 const regQotedStr = '(?:"|\').*?(?:"|\')';
-const svgStyleRegex = new RegExp(`(?:${svgStyleTags.join('|')})=${regQotedStr}`, 'g');
-const rgbRegex = /rgb\(|\)| |%/g;
-const propertyNameRegex = /.*=|"|'/g;
+const svgStyleRegex_g = new RegExp(`(?:${svgStyleTags.join('|')})=${regQotedStr}`, 'g');
+const rgbRegex_g = /rgb\(|\)| |%/g;
+const propertyNameRegex_g = /.*=|"|'/g;
+const idRegex_g = new RegExp(`id=${regQotedStr}`, 'g');
 
 type SSMap = Map<string, string>;
 
@@ -389,7 +390,7 @@ export class Processors {
         });
     }
 
-    private async writeRenderedFile(inputFile: string, outputFile: string, type: RenderType, conversionParams: SSMap) {
+    private async writeRenderedFile(inputFile: string, outputFile: string, type: RenderType, conversionParams: SSMap, hash: string) {
 
         const renderer = this.getRendererParameters(type, inputFile, outputFile);
 
@@ -400,7 +401,7 @@ export class Processors {
         const renderedContent = readFileString(outputFile);
 
         if (!renderer.skipDynamicSvg) {
-            const svg = this.makeDynamicSvg(renderedContent, conversionParams);
+            const svg = this.makeDynamicSvg(renderedContent, conversionParams, hash);
             fs.writeFileSync(outputFile, svg.svgData);
             return svg;
         }
@@ -411,7 +412,7 @@ export class Processors {
         };
     }
 
-    private makeDynamicSvg(svgSource: string, conversionParams: SSMap) {
+    private makeDynamicSvg(svgSource: string, conversionParams: SSMap, hash: string) {
         // replace colors with dynamic colors
         // TODO: parse svg groups
         const width = conversionParams.get('width');
@@ -444,10 +445,10 @@ export class Processors {
                         continue;
                     }
 
-                    let tagColor = tagStyle?.length ? tagStyle[0].replaceAll(propertyNameRegex, '') : 'black';
+                    let tagColor = tagStyle?.length ? tagStyle[0].replaceAll(propertyNameRegex_g, '') : 'black';
 
                     if (tagColor.startsWith('rgb')) {
-                        tagColor = rgb100ToHex(tagColor.replaceAll(rgbRegex, '').split(','));
+                        tagColor = rgb100ToHex(tagColor.replaceAll(rgbRegex_g, '').split(','));
                     }
 
                     const params = (conversionParams.get(`${svgTag}-${svgStyleTag}`) || '').split(',');
@@ -528,7 +529,17 @@ export class Processors {
             }
         }
 
-        svgSource = svgSource.replaceAll(svgStyleRegex, '');
+        svgSource = svgSource.replaceAll(svgStyleRegex_g, ''); // remove fill, stroke, etc from direct svg tags
+
+
+        const ids = svgSource.match(idRegex_g);
+        if (ids) {  // make all ids unique
+            for (const id of ids) {
+                const idc = id.replaceAll(propertyNameRegex_g, '');
+                svgSource = svgSource.replaceAll(idc, `${idc}-${hash}"`);
+            }
+        }
+
         return {
             svgData: svgSource,
             extras: conversionParams
@@ -625,7 +636,7 @@ export class Processors {
             if (!resolvedLink) {
                 throw Error(`Invalid link: ${graphData.source}`);
             }
-            return this.makeDynamicSvg((await this.vaultAdapter.read(resolvedLink)).toString(), graphData.extras);
+            return this.makeDynamicSvg((await this.vaultAdapter.read(resolvedLink)).toString(), graphData.extras, graph_hash);
         }
 
         if (!fs.existsSync(inputFile)) {
@@ -637,7 +648,7 @@ export class Processors {
             };
         }
 
-        return this.writeRenderedFile(inputFile, outputFile, type, graphData.extras);
+        return this.writeRenderedFile(inputFile, outputFile, type, graphData.extras, graph_hash);
     }
 
     private async imageProcessor(source: string, el: HTMLElement, _: MarkdownPostProcessorContext, type: RenderType): Promise<void> {

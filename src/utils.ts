@@ -67,10 +67,6 @@ export function findClosestColorVar(targetColor: RgbColor, colorMap: Map<RgbColo
     };
 }
 
-export function numToStrWithSign(val: number): string {
-    return val > 0 ? `+ ${val}` : `- ${-val}`;
-}
-
 export function isDefined(val: unknown): boolean {
     return !(val === undefined || val === null);
 }
