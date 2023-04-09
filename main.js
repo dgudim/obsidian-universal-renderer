@@ -344,14 +344,14 @@ var presets = /* @__PURE__ */ new Map([
   ["default-latex", /* @__PURE__ */ new Map([
     ["inverted", "true"],
     ["width", "100%"],
-    ["doc-start", "\\documentclass[preview,class=article]{standalone}"],
+    ["doc-start", "\\documentclass[preview,class=article]{standalone}\\usepackage{amsmath}\\usepackage{multicol}\\usepackage[table,usenames,dvipsnames]{xcolor}\\begin{document}"],
     ["doc-end", "\\end{document}"]
   ])],
   ["default-tikz", /* @__PURE__ */ new Map([
     ["inverted", "true"],
     ["width", "100%"],
     ["doc-start", "\\documentclass[tikz]{standalone}\\usepackage{tikz}\\begin{document}"],
-    ["doc-end", "\\end{document}"]
+    ["doc-end", "\\end{tikzpicture}\\end{document}"]
   ])],
   ["default-plantuml", /* @__PURE__ */ new Map([
     ["inverted", "true"],
