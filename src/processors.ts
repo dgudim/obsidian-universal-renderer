@@ -210,8 +210,8 @@ function transformColorMap(colorList: (string | string[][])[][]): { colorToVar: 
 }
 
 function mapColor(sourceColor: string, findClosestColor: boolean): {
-    colorVar: string | undefined, sourceColor: RgbColor | undefined,
-    type: ColorType, delta: number, deltaColor: RgbColor | undefined
+    colorVar?: string, sourceColor?: RgbColor,
+    type: ColorType, delta: number, deltaColor?: RgbColor
 } {
 
     if (!isDefined(shadeToVar)) {
