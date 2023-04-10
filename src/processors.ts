@@ -312,8 +312,11 @@ export class Processors {
                             path: this.pluginSettings.pdflatexPath,
                             options: ['-shell-escape', '-output-directory', getTempDir(type), inputFile]
                         }, {
+                            path: this.pluginSettings.pdfCropPath,
+                            options: [`${inputFile}.pdf`]
+                        }, {
                             path: this.pluginSettings.pdf2svgPath,
-                            options: [`${inputFile}.pdf`, outputFile]
+                            options: [`${inputFile}-crop.pdf`, outputFile]
                         }
                     ],
                     skipDynamicSvg: false,

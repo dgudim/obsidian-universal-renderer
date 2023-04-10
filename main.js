@@ -45,6 +45,7 @@ var DEFAULT_SETTINGS = {
   dotPath: "dot",
   pdflatexPath: "pdflatex",
   pdf2svgPath: "pdf2svg",
+  pdfCropPath: "pdfcrop",
   blockdiagPath: "blockdiag",
   ditaaPath: "ditaa",
   asciidocPath: "asciidoctor",
@@ -463,8 +464,12 @@ var Processors = class {
               options: ["-shell-escape", "-output-directory", getTempDir(type), inputFile]
             },
             {
+              path: this.pluginSettings.pdfCropPath,
+              options: [`${inputFile}.pdf`]
+            },
+            {
               path: this.pluginSettings.pdf2svgPath,
-              options: [`${inputFile}.pdf`, outputFile]
+              options: [`${inputFile}-crop.pdf`, outputFile]
             }
           ],
           skipDynamicSvg: false

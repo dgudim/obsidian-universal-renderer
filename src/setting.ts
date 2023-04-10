@@ -5,6 +5,7 @@ export type GraphvizSettings = {
   dotPath: string;
   pdflatexPath: string;
   pdf2svgPath: string;
+  pdfCropPath: string;
   blockdiagPath: string;
   ditaaPath: string;
   asciidocPath: string;
@@ -15,6 +16,7 @@ export const DEFAULT_SETTINGS: GraphvizSettings = {
   dotPath: 'dot',
   pdflatexPath: 'pdflatex',
   pdf2svgPath: 'pdf2svg',
+  pdfCropPath: 'pdfcrop',
   blockdiagPath: 'blockdiag',
   ditaaPath: 'ditaa',
   asciidocPath: 'asciidoctor',
