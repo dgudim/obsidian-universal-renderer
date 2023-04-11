@@ -656,7 +656,7 @@ var Processors = class {
     if (ids) {
       for (const id of ids) {
         const idc = id.replaceAll(propertyNameRegex_g, "");
-        svgSource = svgSource.replaceAll(idc, `${idc}-${hash}"`);
+        svgSource = svgSource.replaceAll(idc, `${idc}-${hash}`);
       }
     }
     return {
