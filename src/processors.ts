@@ -210,7 +210,7 @@ function transformColorMap(colorList: (string | string[][])[][]): { colorToVar: 
     };
 }
 
-function mapColor(sourceColor: string, findClosestColor: boolean): {
+function mapColor(sourceColor: string): {
     colorVar?: string, sourceColor?: RgbColor,
     type: ColorType, delta: number, deltaColor?: RgbColor
 } {
@@ -235,7 +235,7 @@ function mapColor(sourceColor: string, findClosestColor: boolean): {
 
     const sourceRgbColor = hexToRgb(sourceColor);
 
-    if (!isDefined(colorVar) && !isDefined(shadeVar) && isDefined(sourceRgbColor) && findClosestColor) {
+    if (!isDefined(colorVar) && !isDefined(shadeVar) && isDefined(sourceRgbColor)) {
         const closestColor = findClosestColorVar(sourceRgbColor!, rgbColorToVar);
         const closestShade = findClosestColorVar(sourceRgbColor!, rgbShadeToVar);
         if (closestColor.delta < closestShade.delta) {
@@ -393,7 +393,7 @@ export class Processors {
         });
     }
 
-    private async writeRenderedFile(inputFile: string, outputFile: string, type: RenderType, conversionParams: SSMap, hash: string) {
+    private async writeRenderedFile(inputFile: string, outputFile: string, type: RenderType, conversionParams: SSMap, hash: string): Promise<{ svgData: string; }> {
 
         const renderer = this.getRendererParameters(type, inputFile, outputFile);
 
@@ -410,12 +410,11 @@ export class Processors {
         }
 
         return {
-            svgData: renderedContent,
-            extras: conversionParams
+            svgData: renderedContent
         };
     }
 
-    private makeDynamicSvg(svgSource: string, conversionParams: SSMap, hash: string) {
+    private makeDynamicSvg(svgSource: string, conversionParams: SSMap, hash: string): { svgData: string } {
         // replace colors with dynamic colors
         // TODO: parse svg groups
         const width = conversionParams.get('width');
@@ -424,6 +423,8 @@ export class Processors {
         }
         const svgStart = svgSource.indexOf('<svg') + 4;
         let currentIndex;
+
+        const globalInvert = conversionParams.has('inverted');
 
         for (const svgTag of svgTags) {
             currentIndex = svgStart;
@@ -437,7 +438,7 @@ export class Processors {
                 currentIndex += svgTag.length + 2; // 2 because of '<' and ' '
                 const styleSubstring = svgSource.substring(currentIndex, svgSource.indexOf('>', currentIndex));
 
-                let newStyle = 'style="';
+                let style = '';
                 let additionalTag = '';
 
                 for (const svgStyleTag of svgStyleTags) {
@@ -448,26 +449,32 @@ export class Processors {
                         continue;
                     }
 
-                    let tagColor = tagStyle?.length ? tagStyle[0].replaceAll(propertyNameRegex_g, '') : 'black';
+                    let tagHexColor = tagStyle?.length ? tagStyle[0].replaceAll(propertyNameRegex_g, '') : 'black';
 
-                    if (tagColor.startsWith('rgb')) {
-                        tagColor = rgb100ToHex(tagColor.replaceAll(rgbRegex_g, '').split(','));
+                    if (tagHexColor.startsWith('rgb')) {
+                        tagHexColor = rgb100ToHex(tagHexColor.replaceAll(rgbRegex_g, '').split(','));
                     }
 
                     const params = (conversionParams.get(`${svgTag}-${svgStyleTag}`) || '').split(',');
 
                     if (params.contains('skip')) {
                         // skip it, use the original value
-                        newStyle += `${svgStyleTag}:${tagColor};`;
+                        style += `${svgStyleTag}:${tagHexColor};`;
                         continue;
                     }
 
-                    const rcolor = mapColor(tagColor, !params.contains('original-colors'));
+                    const rcolor = mapColor(tagHexColor);
 
                     if (!rcolor.colorVar) {
                         // we were unable to parse color, use original value
-                        newStyle += `${svgStyleTag}:${tagColor};`;
+                        style += `${svgStyleTag}:${tagHexColor};`;
                         continue;
+                    }
+
+                    const localInvert = params.contains(`invert-${rcolor.type}`) || params.contains('invert-all');
+
+                    if (globalInvert != localInvert) {
+                        rcolor.colorVar = invertColorName(rcolor.colorVar);
                     }
 
                     for (const param of params) {
@@ -480,19 +487,6 @@ export class Processors {
                                 break;
                             case 'keep-all':
                                 additionalTag = 'class="keep-color keep-shade"';
-                                break;
-                            case 'invert-color':
-                                if (rcolor.type === 'color') {
-                                    rcolor.colorVar = invertColorName(rcolor.colorVar);
-                                }
-                                break;
-                            case 'invert-shade':
-                                if (rcolor.type === 'shade') {
-                                    rcolor.colorVar = invertColorName(rcolor.colorVar);
-                                }
-                                break;
-                            case 'invert-all':
-                                rcolor.colorVar = invertColorName(rcolor.colorVar);
                                 break;
                         }
                     }
@@ -507,28 +501,26 @@ export class Processors {
                         switch (mixMode) {
                             case 'mix':
                                 const col = rcolor.sourceColor!;
-                                newStyle += `${svgStyleTag}:rgb(
+                                style += `${svgStyleTag}:rgb(
                                     clamp(0, calc(${col.r * mixMultiplier} + ${inverseMixMultiplier} * var(${rcolor.colorVar}_r)), 255), 
                                     clamp(0, calc(${col.g * mixMultiplier} + ${inverseMixMultiplier} * var(${rcolor.colorVar}_g)), 255), 
-                                    clamp(0, calc(${col.b * mixMultiplier} + ${inverseMixMultiplier} * var(${rcolor.colorVar}_b)), 255))`;
+                                    clamp(0, calc(${col.b * mixMultiplier} + ${inverseMixMultiplier} * var(${rcolor.colorVar}_b)), 255));`;
                                 break;
                             case 'delta':
                             default:
                                 const cdlt = rcolor.deltaColor!;
-                                newStyle += `${svgStyleTag}:rgb(
+                                style += `${svgStyleTag}:rgb(
                                     clamp(0, calc(var(${rcolor.colorVar}_r) + ${cdlt.r * mixMultiplier}), 255), 
                                     clamp(0, calc(var(${rcolor.colorVar}_g) + ${cdlt.g * mixMultiplier}), 255), 
-                                    clamp(0, calc(var(${rcolor.colorVar}_b) + ${cdlt.b * mixMultiplier}), 255))`;
+                                    clamp(0, calc(var(${rcolor.colorVar}_b) + ${cdlt.b * mixMultiplier}), 255));`;
                         }
                     } else {
-                        newStyle += `${svgStyleTag}:var(${rcolor.colorVar});`;
+                        style += `${svgStyleTag}:var(${rcolor.colorVar});`;
                     }
 
                 }
 
-                newStyle += `" ${additionalTag} `;
-
-                svgSource = insertStr(svgSource, currentIndex, newStyle);
+                svgSource = insertStr(svgSource, currentIndex, `style="${style}" ${additionalTag} `);
             }
         }
 
@@ -544,8 +536,7 @@ export class Processors {
         }
 
         return {
-            svgData: svgSource,
-            extras: conversionParams
+            svgData: svgSource
         };
     }
 
@@ -558,28 +549,29 @@ export class Processors {
         }
     }
 
-    private preprocessSource(type: RenderType, source: string, outputFile: string) {
+    private preprocessSource(type: RenderType, source: string, outputFile: string): { source: string, extras: SSMap } {
         const conversionParams = new Map<string, string>();
-        this.loadPreset(`default-${type}`, conversionParams); // always try to load default preset
 
         if (source.startsWith('---')) {
 
             const lastIndex = source.indexOf('---', 3);
             const frontMatter = source.substring(3, lastIndex);
-            const parameters = frontMatter.trim().split('\n');
-
-            for (const parameter of parameters) {
+            const parameters: Map<string, string> = new Map(frontMatter.trim().split('\n').map((parameter) => {
                 const parameter_split = parameter.split(':');
                 if (parameter_split.length == 1) {
                     parameter_split.push('1');
                 }
-                const parameter_name = parameter_split[0].trim();
-                const parameter_value = parameter_split[1].trim();
+                return [parameter_split[0].trim(), parameter_split[1].trim()];
+            }));
+            if (!parameters.get('preset')) {
+                parameters.set('preset', `default-${type}`); // load default preset if not specified
+            }
 
-                if (parameter_name === 'preset') {
-                    this.loadPreset(parameter_value, conversionParams);
+            for (const [name, value] of parameters) {
+                if (name === 'preset') {
+                    this.loadPreset(value, conversionParams);
                 } else {
-                    conversionParams.set(parameter_name, parameter_value);
+                    conversionParams.set(name, value);
                 }
             }
             source = source.substring(lastIndex + 3);
@@ -609,7 +601,7 @@ export class Processors {
         };
     }
 
-    private async renderImage(type: RenderType, source: string): Promise<{ svgData: string, extras: SSMap }> {
+    private async renderImage(type: RenderType, source: string): Promise<{ svgData: string }> {
 
         if (type === 'refgraph') {
             const graphData = this.referenceGraphMap.get(source.trim());
@@ -617,8 +609,7 @@ export class Processors {
                 throw Error(`Graph with name ${source} does not exist`);
             }
             return {
-                svgData: readFileString(graphData.sourcePath),
-                extras: graphData.extras
+                svgData: readFileString(graphData.sourcePath)
             };
         }
 
@@ -646,8 +637,7 @@ export class Processors {
             fs.writeFileSync(inputFile, graphData.source);
         } else if (fs.existsSync(outputFile)) {
             return {
-                svgData: readFileString(outputFile),
-                extras: graphData.extras
+                svgData: readFileString(outputFile)
             };
         }
 
@@ -660,7 +650,6 @@ export class Processors {
 
             const image = await this.renderImage(type, source.trim());
 
-            el.classList.add(image.extras.get('inverted') ? 'multi-graph-inverted' : 'multi-graph-normal');
             el.innerHTML = image.svgData;
 
         } catch (errMessage) {
