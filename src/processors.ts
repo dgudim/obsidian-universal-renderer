@@ -171,19 +171,19 @@ const presets = new Map<string, Map<string, string>>([
         ['text-fill', 'keep-shade']
     ])],
     ['default-latex', new Map<string, string>([
-        ['inverted', 'true'],
+        ['invert-shade', '1'],
         ['width', '100%'],
         ['doc-start', '\\documentclass[preview,class=article]{standalone}\\usepackage{amsmath}\\usepackage{multicol}\\usepackage[table,usenames,dvipsnames]{xcolor}\\begin{document}'],
         ['doc-end', '\\end{document}'],
     ])],
     ['default-tikz', new Map<string, string>([
-        ['inverted', 'true'],
+        ['invert-shade', '1'],
         ['width', '100%'],
         ['doc-start', '\\documentclass[tikz]{standalone}\\usepackage{tikz}\\begin{document}'],
         ['doc-end', '\\end{tikzpicture}\\end{document}']
     ])],
     ['default-plantuml', new Map<string, string>([
-        ['inverted', 'true'],
+        ['invert-shade', '1'],
         ['width', '100%'],
         ['doc-start', '@startuml'],
         ['doc-end', '@enduml']
@@ -424,7 +424,8 @@ export class Processors {
         const svgStart = svgSource.indexOf('<svg') + 4;
         let currentIndex;
 
-        const globalInvert = conversionParams.has('inverted');
+        const globalColorInvert = conversionParams.has('invert-color');
+        const globalShadeInvert = conversionParams.has('invert-shade');
 
         for (const svgTag of svgTags) {
             currentIndex = svgStart;
@@ -472,6 +473,7 @@ export class Processors {
                     }
 
                     const localInvert = params.contains(`invert-${rcolor.type}`) || params.contains('invert-all');
+                    const globalInvert = rcolor.type === 'color' ? globalColorInvert : globalShadeInvert;
 
                     if (globalInvert != localInvert) {
                         rcolor.colorVar = invertColorName(rcolor.colorVar);
@@ -540,41 +542,31 @@ export class Processors {
         };
     }
 
-    private loadPreset(presetName: string, conversionParams: SSMap) {
-        const preset = presets.get(presetName);
-        if (preset) {
-            for (const [preset_key, preset_value] of preset) {
-                conversionParams.set(preset_key, preset_value);
-            }
-        }
-    }
-
     private preprocessSource(type: RenderType, source: string, outputFile: string): { source: string, extras: SSMap } {
-        const conversionParams = new Map<string, string>();
+        let conversionParams = new Map<string, string>();
 
         if (source.startsWith('---')) {
 
             const lastIndex = source.indexOf('---', 3);
             const frontMatter = source.substring(3, lastIndex);
-            const parameters: Map<string, string> = new Map(frontMatter.trim().split('\n').map((parameter) => {
+            conversionParams = new Map(frontMatter.trim().split('\n').map((parameter) => {
                 const parameter_split = parameter.split(':');
                 if (parameter_split.length == 1) {
                     parameter_split.push('1');
                 }
                 return [parameter_split[0].trim(), parameter_split[1].trim()];
             }));
-            if (!parameters.get('preset')) {
-                parameters.set('preset', `default-${type}`); // load default preset if not specified
-            }
 
-            for (const [name, value] of parameters) {
-                if (name === 'preset') {
-                    this.loadPreset(value, conversionParams);
-                } else {
-                    conversionParams.set(name, value);
+            source = source.substring(lastIndex + 3);
+        }
+
+        const preset = presets.get(conversionParams.get('preset') || `default-${type}`);
+        if (preset) {
+            for (const [preset_key, preset_value] of preset) {
+                if (!conversionParams.has(preset_key)) {
+                    conversionParams.set(preset_key, preset_value);
                 }
             }
-            source = source.substring(lastIndex + 3);
         }
 
         for (const [param_key, param_value] of conversionParams) {
@@ -650,6 +642,7 @@ export class Processors {
 
             const image = await this.renderImage(type, source.trim());
 
+            el.classList.add('multi-graph');
             el.innerHTML = image.svgData;
 
         } catch (errMessage) {

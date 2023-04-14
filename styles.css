@@ -402,7 +402,7 @@
 
 /* proper sizing */
 
-.multi-graph-normal svg, .multi-graph-inverted svg {
+.multi-graph svg {
     max-width: 100%;
     height: auto;
 }
