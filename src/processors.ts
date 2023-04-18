@@ -21,7 +21,7 @@ export const renderTypes = [
     'plantuml'] as const;
 type RenderType = typeof renderTypes[number];
 
-const svgTags = ['text', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon'] as const;
+const svgTags = ['text', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'use'] as const;
 
 const svgStyleTags = ['fill', 'stroke'] as const;
 const regQotedStr = '(?:"|\').*?(?:"|\')';
@@ -533,7 +533,10 @@ export class Processors {
         if (ids) {  // make all ids unique
             for (const id of ids) {
                 const idc = id.replaceAll(propertyNameRegex_g, '');
-                svgSource = svgSource.replaceAll(idc, `${idc}-${hash}`);
+                const idc_u = `${idc}-${hash}`;
+                svgSource = svgSource
+                    .replaceAll(`id="${idc}"`, `id="${idc_u}"`)
+                    .replaceAll(`href="#${idc}"`, `href="#${idc_u}"`);
             }
         }
 

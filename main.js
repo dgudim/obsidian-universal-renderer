@@ -159,7 +159,7 @@ var renderTypes = [
   "dynamic-svg",
   "plantuml"
 ];
-var svgTags = ["text", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon"];
+var svgTags = ["text", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon", "use"];
 var svgStyleTags = ["fill", "stroke"];
 var regQotedStr = `(?:"|').*?(?:"|')`;
 var svgStyleRegex_g = new RegExp(`(?:${svgStyleTags.join("|")})=${regQotedStr}`, "g");
@@ -648,7 +648,8 @@ var Processors = class {
     if (ids) {
       for (const id of ids) {
         const idc = id.replaceAll(propertyNameRegex_g, "");
-        svgSource = svgSource.replaceAll(idc, `${idc}-${hash}`);
+        const idc_u = `${idc}-${hash}`;
+        svgSource = svgSource.replaceAll(`id="${idc}"`, `id="${idc_u}"`).replaceAll(`href="#${idc}"`, `href="#${idc_u}"`);
       }
     }
     return {
