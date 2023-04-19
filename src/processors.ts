@@ -21,7 +21,7 @@ export const renderTypes = [
     'plantuml'] as const;
 type RenderType = typeof renderTypes[number];
 
-const svgTags = ['text', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'use'] as const;
+const svgTags = ['text', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'g', 'use'] as const;
 
 const svgStyleTags = ['fill', 'stroke'] as const;
 const regQotedStr = '(?:"|\').*?(?:"|\')';
@@ -276,6 +276,16 @@ function mapColor(sourceColor: string): {
     };
 }
 
+function getColorFromTag(tagStyle: string | undefined): string {
+    let tagColor = tagStyle ? tagStyle.replaceAll(propertyNameRegex_g, '') : 'black';
+    if (tagColor.startsWith('rgb')) {
+        tagColor = rgb100ToHex(tagColor.replaceAll(rgbRegex_g, '').split(','));
+    } else if (tagColor.startsWith(('#')) && tagColor.length == 4) {
+        tagColor = `#${tagColor[1]}${tagColor[1]}${tagColor[2]}${tagColor[2]}${tagColor[3]}${tagColor[3]}`;
+    }
+    return tagColor;
+}
+
 export function getTempDir(type: RenderType): string {
     return path.join(os.tmpdir(), `obsidian-${type}`);
 }
@@ -421,7 +431,7 @@ export class Processors {
         if (width) {
             svgSource = svgSource.replace('<svg', `<svg style="width: ${width}" `);
         }
-        const svgStart = svgSource.indexOf('<svg') + 4;
+        const svgStart = Math.max(svgSource.indexOf('</defs>') + 7 || svgSource.indexOf('<svg') + 4);
         let currentIndex;
 
         const globalColorInvert = conversionParams.has('invert-color');
@@ -446,29 +456,26 @@ export class Processors {
 
                     const tagStyle = styleSubstring.match(`${svgStyleTag}=${regQotedStr}`);
 
-                    if (!tagStyle?.length && svgStyleTag == 'stroke' && !conversionParams.get(`${svgTag}-implicit-stroke`)) {
+                    if ((!tagStyle?.length && svgStyleTag == 'stroke' && !conversionParams.get(`${svgTag}-implicit-stroke`))
+                    || (!tagStyle?.length && svgTag == 'use')) {
                         continue;
                     }
 
-                    let tagHexColor = tagStyle?.length ? tagStyle[0].replaceAll(propertyNameRegex_g, '') : 'black';
-
-                    if (tagHexColor.startsWith('rgb')) {
-                        tagHexColor = rgb100ToHex(tagHexColor.replaceAll(rgbRegex_g, '').split(','));
-                    }
+                    const tagColor = getColorFromTag(tagStyle?.[0]); 
 
                     const params = (conversionParams.get(`${svgTag}-${svgStyleTag}`) || '').split(',');
 
                     if (params.contains('skip')) {
                         // skip it, use the original value
-                        style += `${svgStyleTag}:${tagHexColor};`;
+                        style += `${svgStyleTag}:${tagColor};`;
                         continue;
                     }
 
-                    const rcolor = mapColor(tagHexColor);
+                    const rcolor = mapColor(tagColor);
 
                     if (!rcolor.colorVar) {
                         // we were unable to parse color, use original value
-                        style += `${svgStyleTag}:${tagHexColor};`;
+                        style += `${svgStyleTag}:${tagColor};`;
                         continue;
                     }
 

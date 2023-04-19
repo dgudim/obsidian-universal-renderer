@@ -159,7 +159,7 @@ var renderTypes = [
   "dynamic-svg",
   "plantuml"
 ];
-var svgTags = ["text", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon", "use"];
+var svgTags = ["text", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon", "g"];
 var svgStyleTags = ["fill", "stroke"];
 var regQotedStr = `(?:"|').*?(?:"|')`;
 var svgStyleRegex_g = new RegExp(`(?:${svgStyleTags.join("|")})=${regQotedStr}`, "g");
@@ -434,6 +434,15 @@ function mapColor(sourceColor) {
     sourceColor: sourceRgbColor
   };
 }
+function getColorFromTag(tagStyle) {
+  let tagColor = tagStyle ? tagStyle.replaceAll(propertyNameRegex_g, "") : "black";
+  if (tagColor.startsWith("rgb")) {
+    tagColor = rgb100ToHex(tagColor.replaceAll(rgbRegex_g, "").split(","));
+  } else if (tagColor.startsWith("#") && tagColor.length == 4) {
+    tagColor = `#${tagColor[1]}${tagColor[1]}${tagColor[2]}${tagColor[2]}${tagColor[3]}${tagColor[3]}`;
+  }
+  return tagColor;
+}
 function getTempDir(type) {
   return path.join(os.tmpdir(), `obsidian-${type}`);
 }
@@ -564,7 +573,7 @@ var Processors = class {
     if (width) {
       svgSource = svgSource.replace("<svg", `<svg style="width: ${width}" `);
     }
-    const svgStart = svgSource.indexOf("<svg") + 4;
+    const svgStart = Math.max(svgSource.indexOf("</defs>") + 7 || svgSource.indexOf("<svg") + 4);
     let currentIndex;
     const globalColorInvert = conversionParams.has("invert-color");
     const globalShadeInvert = conversionParams.has("invert-shade");
@@ -584,18 +593,15 @@ var Processors = class {
           if (!(tagStyle == null ? void 0 : tagStyle.length) && svgStyleTag == "stroke" && !conversionParams.get(`${svgTag}-implicit-stroke`)) {
             continue;
           }
-          let tagHexColor = (tagStyle == null ? void 0 : tagStyle.length) ? tagStyle[0].replaceAll(propertyNameRegex_g, "") : "black";
-          if (tagHexColor.startsWith("rgb")) {
-            tagHexColor = rgb100ToHex(tagHexColor.replaceAll(rgbRegex_g, "").split(","));
-          }
+          const tagColor = getColorFromTag(tagStyle == null ? void 0 : tagStyle[0]);
           const params = (conversionParams.get(`${svgTag}-${svgStyleTag}`) || "").split(",");
           if (params.contains("skip")) {
-            style += `${svgStyleTag}:${tagHexColor};`;
+            style += `${svgStyleTag}:${tagColor};`;
             continue;
           }
-          const rcolor = mapColor(tagHexColor);
+          const rcolor = mapColor(tagColor);
           if (!rcolor.colorVar) {
-            style += `${svgStyleTag}:${tagHexColor};`;
+            style += `${svgStyleTag}:${tagColor};`;
             continue;
           }
           const localInvert = params.contains(`invert-${rcolor.type}`) || params.contains("invert-all");
