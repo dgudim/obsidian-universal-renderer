@@ -5,13 +5,14 @@ import { DataAdapter, MarkdownPostProcessorContext, MetadataCache } from 'obsidi
 import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
+import { JSDOM } from 'jsdom';
 import { spawn } from 'child_process';
 import GraphvizPlugin from './main';
 
 import { GraphvizSettings } from './setting';
 
 import * as crypto from 'crypto';
-import { RgbColor, findClosestColorVar, getColorDelta, hexToRgb, insertStr, invertColorName, isDefined, readFileString, rgb100ToHex } from './utils';
+import { RgbColor, findClosestColorVar, getColorDelta, hexToRgb, invertColorName, isDefined, readFileString, rgb100ToHex } from './utils';
 const md5 = (contents: string) => crypto.createHash('md5').update(contents).digest('hex');
 
 export const renderTypes = [
@@ -21,14 +22,26 @@ export const renderTypes = [
     'plantuml'] as const;
 type RenderType = typeof renderTypes[number];
 
-const svgTags = ['text', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'g', 'use'] as const;
-
 const svgStyleTags = ['fill', 'stroke'] as const;
-const regQotedStr = '(?:"|\').*?(?:"|\')';
-const svgStyleRegex_g = new RegExp(`(?:${svgStyleTags.join('|')})=${regQotedStr}`, 'g');
+type SvgStyleTagType = typeof svgStyleTags[number];
+
+//@ts-format-ignore-region
+const svgTags: Map<string, SvgStyleTagType[]> = new Map([
+    [ 'text',     ['fill'] ],
+    [ 'path',     ['fill'] ],
+    [ 'rect',     ['fill'] ],
+    [ 'circle',   ['fill'] ],
+    [ 'ellipse',  ['fill'] ],
+    [ 'line',     ['fill'] ],
+    [ 'polyline', ['fill'] ],
+    [ 'polygon',  ['fill'] ],
+    [ 'g',        [] ],
+    [ 'switch',   [] ],
+    [ 'use',      ['fill'] ]
+]);
+//@ts-format-ignore-endregion
+
 const rgbRegex_g = /rgb\(|\)| |%/g;
-const propertyNameRegex_g = /.*=|"|'/g;
-const idRegex_g = new RegExp(`id=${regQotedStr}`, 'g');
 
 type SSMap = Map<string, string>;
 
@@ -276,8 +289,7 @@ function mapColor(sourceColor: string): {
     };
 }
 
-function getColorFromTag(tagStyle: string | undefined): string {
-    let tagColor = tagStyle ? tagStyle.replaceAll(propertyNameRegex_g, '') : 'black';
+function parseColor(tagColor: string): string {
     if (tagColor.startsWith('rgb')) {
         tagColor = rgb100ToHex(tagColor.replaceAll(rgbRegex_g, '').split(','));
     } else if (tagColor.startsWith(('#')) && tagColor.length == 4) {
@@ -424,58 +436,55 @@ export class Processors {
         };
     }
 
-    private makeDynamicSvg(svgSource: string, conversionParams: SSMap, hash: string): { svgData: string } {
-        // replace colors with dynamic colors
-        // TODO: parse svg groups
-        const width = conversionParams.get('width');
-        if (width) {
-            svgSource = svgSource.replace('<svg', `<svg style="width: ${width}" `);
+    private makeIdsUnique(node: Element, hash: string) {
+        for (const element of node.children) {
+            const id = element.id;
+            if (id) {
+                element.id += '-' + hash;
+            }
+            this.makeIdsUnique(element, hash);
         }
-        const svgStart = Math.max(svgSource.indexOf('</defs>') + 7 || svgSource.indexOf('<svg') + 4);
-        let currentIndex;
+    }
+
+    private parseSvgLayer(node: Element, conversionParams: SSMap, inheritedParams: string[], hash: string) {
 
         const globalColorInvert = conversionParams.has('invert-color');
         const globalShadeInvert = conversionParams.has('invert-shade');
 
-        for (const svgTag of svgTags) {
-            currentIndex = svgStart;
-            while (true) {
-                currentIndex = svgSource.indexOf(`<${svgTag}`, currentIndex);
+        for (const element of node.children) {
+            const tagName = element.tagName;
 
-                if (currentIndex == -1) {
-                    break;
-                }
+            if (tagName === 'defs') {
+                this.makeIdsUnique(element, hash);
+            } else if (svgTags.has(tagName)) {
 
-                currentIndex += svgTag.length + 2; // 2 because of '<' and ' '
-                const styleSubstring = svgSource.substring(currentIndex, svgSource.indexOf('>', currentIndex));
-
+                const tagImplicitParamFlags = svgTags.get(tagName)!;
+                const tagParams: string[] = [];
                 let style = '';
-                let additionalTag = '';
+
+                const linkId = element.getAttribute('xlink:href');
+                if (linkId) {
+                    element.setAttribute('xlink:href', `${linkId}-${hash}`);
+                }
 
                 for (const svgStyleTag of svgStyleTags) {
 
-                    const tagStyle = styleSubstring.match(`${svgStyleTag}=${regQotedStr}`);
+                    const styleTagValue = element.getAttribute(svgStyleTag);
+                    element.removeAttribute(svgStyleTag);
 
-                    if ((!tagStyle?.length && svgStyleTag == 'stroke' && !conversionParams.get(`${svgTag}-implicit-stroke`))
-                    || (!tagStyle?.length && svgTag == 'use')) {
+                    const params = (conversionParams.get(`${tagName}-${svgStyleTag}`) || '').split(',');
+
+                    if (!styleTagValue && (inheritedParams.contains(svgStyleTag) || !(tagImplicitParamFlags.contains(svgStyleTag) || params.contains('implicit')))) {
                         continue;
                     }
 
-                    const tagColor = getColorFromTag(tagStyle?.[0]); 
+                    const tagColor = styleTagValue ? parseColor(styleTagValue) : 'black';
+                    const rcolor = params.contains('skip') ? undefined : mapColor(tagColor);
 
-                    const params = (conversionParams.get(`${svgTag}-${svgStyleTag}`) || '').split(',');
-
-                    if (params.contains('skip')) {
+                    if (!rcolor || !rcolor.colorVar) {
                         // skip it, use the original value
                         style += `${svgStyleTag}:${tagColor};`;
-                        continue;
-                    }
-
-                    const rcolor = mapColor(tagColor);
-
-                    if (!rcolor.colorVar) {
-                        // we were unable to parse color, use original value
-                        style += `${svgStyleTag}:${tagColor};`;
+                        tagParams.push(svgStyleTag);
                         continue;
                     }
 
@@ -489,13 +498,14 @@ export class Processors {
                     for (const param of params) {
                         switch (param) {
                             case 'keep-color':
-                                additionalTag = 'class="keep-color"';
+                                element.classList.add('keep-color');
                                 break;
                             case 'keep-shade':
-                                additionalTag = 'class="keep-shade"';
+                                element.classList.add('keep-shade');
                                 break;
                             case 'keep-all':
-                                additionalTag = 'class="keep-color keep-shade"';
+                                element.classList.add('keep-shade');
+                                element.classList.add('keep-color');
                                 break;
                         }
                     }
@@ -527,28 +537,35 @@ export class Processors {
                         style += `${svgStyleTag}:var(${rcolor.colorVar});`;
                     }
 
+                    tagParams.push(svgStyleTag);
                 }
 
-                svgSource = insertStr(svgSource, currentIndex, `style="${style}" ${additionalTag} `);
+                if (element.children.length > 0) {
+                    this.parseSvgLayer(element, conversionParams, tagParams.concat(inheritedParams), hash);
+                }
+                element.setAttribute('style', style);
+
             }
         }
+    }
 
-        svgSource = svgSource.replaceAll(svgStyleRegex_g, ''); // remove fill, stroke, etc from direct svg tags
-
-
-        const ids = svgSource.match(idRegex_g);
-        if (ids) {  // make all ids unique
-            for (const id of ids) {
-                const idc = id.replaceAll(propertyNameRegex_g, '');
-                const idc_u = `${idc}-${hash}`;
-                svgSource = svgSource
-                    .replaceAll(`id="${idc}"`, `id="${idc_u}"`)
-                    .replaceAll(`href="#${idc}"`, `href="#${idc_u}"`);
-            }
+    private makeDynamicSvg(svgSource: string, conversionParams: SSMap, hash: string): { svgData: string } {
+        // replace colors with dynamic colors
+        const DOM = new JSDOM(svgSource, { contentType: 'image/svg+xml' });
+        const svg = DOM.window.document.querySelector('svg')!;
+        if (!svg) {
+            throw new Error('failed farsing svg source');
         }
+
+        const width = conversionParams.get('width');
+        if (width) {
+            svg.setAttribute('style', `width:${width};`);
+        }
+
+        this.parseSvgLayer(svg, conversionParams, [], hash);
 
         return {
-            svgData: svgSource
+            svgData: DOM.serialize()
         };
     }
 
