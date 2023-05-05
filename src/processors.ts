@@ -9,7 +9,7 @@ import { JSDOM } from 'jsdom';
 import { spawn } from 'child_process';
 import GraphvizPlugin from './main';
 
-import { GraphvizSettings } from './setting';
+import { PluginSettings } from './setting';
 
 import * as crypto from 'crypto';
 import { RgbColor, findClosestColorVar, getColorDelta, hexToRgb, invertColorName, isDefined, readFileString, rgb100ToHex } from './utils';
@@ -303,7 +303,7 @@ export function getTempDir(type: RenderType): string {
 }
 
 export class Processors {
-    pluginSettings: GraphvizSettings;
+    pluginSettings: PluginSettings;
     vaultAdapter: DataAdapter;
     metadataCache: MetadataCache;
 
@@ -651,7 +651,7 @@ export class Processors {
             }
             return this.makeDynamicSvg((await this.vaultAdapter.read(resolvedLink)).toString(), graphData.extras, graph_hash);
         }
-
+        
         if (!fs.existsSync(inputFile)) {
             fs.writeFileSync(inputFile, graphData.source);
         } else if (fs.existsSync(outputFile)) {

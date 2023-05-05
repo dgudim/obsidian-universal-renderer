@@ -1,7 +1,7 @@
 import { PluginSettingTab, Setting } from 'obsidian';
 import GraphvizPlugin from './main';
 
-export type GraphvizSettings = {
+export type PluginSettings = {
   dotPath: string;
   pdflatexPath: string;
   pdf2svgPath: string;
@@ -12,7 +12,7 @@ export type GraphvizSettings = {
   plantumlPath: string;
 }
 
-export const DEFAULT_SETTINGS: GraphvizSettings = {
+export const DEFAULT_SETTINGS: PluginSettings = {
   dotPath: 'dot',
   pdflatexPath: 'pdflatex',
   pdf2svgPath: 'pdf2svg',
@@ -23,7 +23,7 @@ export const DEFAULT_SETTINGS: GraphvizSettings = {
   plantumlPath: 'plantuml',
 };
 
-export class GraphvizSettingsTab extends PluginSettingTab {
+export class PluginSettingsTab extends PluginSettingTab {
   plugin: GraphvizPlugin;
 
   constructor(plugin: GraphvizPlugin) {
