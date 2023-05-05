@@ -26,10 +26,33 @@ const shades: Map<string, string> = new Map([
 
 const shadeGray = '#928374';
 
+const baseCss = `/* proper sizing */
+
+.multi-graph svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* tables for asciidoc */
+
+.block-language-asciidoc p.tableblock:last-child{margin-bottom:0.3em; margin-top:0.3em}
+
+.block-language-asciidoc table.frame-none>colgroup+*>:first-child>*,table.frame-sides>colgroup+*>:first-child>*{border-top-width:0}
+.block-language-asciidoc table.frame-none>:last-child>:last-child>*,table.frame-sides>:last-child>:last-child>*{border-bottom-width:0}
+.block-language-asciidoc table.frame-none>*>tr>:first-child,table.frame-ends>*>tr>:first-child{border-left-width:0}
+.block-language-asciidoc table.frame-none>*>tr>:last-child,table.frame-ends>*>tr>:last-child{border-right-width:0}
+
+.block-language-asciidoc th.halign-left,td.halign-left{text-align:left}
+.block-language-asciidoc th.halign-right,td.halign-right{text-align:right}
+.block-language-asciidoc th.halign-center,td.halign-center{text-align:center}
+.block-language-asciidoc th.valign-top,td.valign-top{vertical-align:top}
+.block-language-asciidoc th.valign-bottom,td.valign-bottom{vertical-align:bottom}
+.block-language-asciidoc th.valign-middle,td.valign-middle{vertical-align:middle}
+`;
+
 function getColorDeclaration(fullName: string, hexColor: string, rgbColor?: RgbColor): string {
     let declaration = '';
 
-    declaration += `/* ${hexColor} */\n`;
     declaration += `${fullName}_r: ${rgbColor?.r};\n`;
     declaration += `${fullName}_g: ${rgbColor?.g};\n`;
     declaration += `${fullName}_b: ${rgbColor?.b};\n`;
@@ -38,15 +61,14 @@ function getColorDeclaration(fullName: string, hexColor: string, rgbColor?: RgbC
     return declaration;
 }
 
-function getColorMapping(nameFrom: string, nameTo: string, important: boolean): string {
+function getColorMapping(nameFrom: string, nameTo: string): string {
 
     let mapping = '';
-    const importantStr = important ? ' !important' : '';
 
-    mapping += `${nameFrom}: var(${nameTo})${importantStr};\n`;
-    mapping += `${nameFrom}_r: var(${nameTo}_r)${importantStr};\n`;
-    mapping += `${nameFrom}_g: var(${nameTo}_g)${importantStr};\n`;
-    mapping += `${nameFrom}_b: var(${nameTo}_b)${importantStr};\n\n`;
+    mapping += `${nameFrom}: var(${nameTo});\n`;
+    mapping += `${nameFrom}_r: var(${nameTo}_r);\n`;
+    mapping += `${nameFrom}_g: var(${nameTo}_g);\n`;
+    mapping += `${nameFrom}_b: var(${nameTo}_b);\n\n`;
 
     return mapping;
 }
@@ -61,9 +83,10 @@ export function genCSS(): string {
 
     let lightThemeMappings = '/* inverted colors for light mode */\n.theme-light {\n';
 
-    let mathStyles = 'mjx-mstyle { --stroke: 0.5px }\n';
+    let mathStyles = 'mjx-mstyle { --stroke: 0.3px }\n';
 
-    globalDeclaration += getColorDeclaration('--g-gray', shadeGray, hexToRgb(shadeGray));
+    let combinedDeclaration = '.theme-dark, .theme-light {\n';
+    combinedDeclaration += getColorDeclaration('--g-gray', shadeGray, hexToRgb(shadeGray));
 
     for (const [name, unionColor] of colors) {
         for (const [type, color] of unionColor) {
@@ -74,7 +97,7 @@ export function genCSS(): string {
 
             const shortName = `${shortType}${name}`;
             const fullName = `--theme-${fullType}${name}`;
-            const fullName_inverted = invertColorName(fullName) || fullName;
+            const fullName_inverted = invertColorName(fullName);
             const fullName_g = `--g-${fullType}${name}`;
 
             globalDeclaration += getColorDeclaration(fullName, color, rgbColor);
@@ -82,9 +105,12 @@ export function genCSS(): string {
             asciidocStyles += `.block-language-asciidoc td.tableblock:has(.${shortName}-cell) { background: var(${fullName}); }\n`;
             asciidocStyles += `.block-language-asciidoc .${shortName} { color: var(${fullName}); }\n\n`;
 
-            darkThemeColorMappings += getColorMapping(fullName_g, fullName, true);
-            lightThemeMappings += getColorMapping(fullName_g, fullName_inverted, false);
-
+            if (!type) {
+                combinedDeclaration += getColorDeclaration(fullName_g, color, rgbColor);
+            } else {
+                darkThemeColorMappings += getColorMapping(fullName_g, fullName);
+                lightThemeMappings += getColorMapping(fullName_g, fullName_inverted);
+            }
         }
         mathStyles += `
 mjx-mstyle[style*="color: ${name};"] {
@@ -93,7 +119,7 @@ mjx-mstyle[style*="color: ${name};"] {
     -webkit-text-stroke-color: var(--g-light-${name});
 }\n\n`;
         darkThemeColorMappings += '\n';
-        lightThemeMappings += '\n';
+        lightThemeMappings += '\n\n';
         asciidocStyles += '\n';
         globalDeclaration += '\n';
     }
@@ -105,14 +131,17 @@ mjx-mstyle[style*="color: ${name};"] {
         const fullName_g = `--g-${name}`;
 
         globalDeclaration += getColorDeclaration(fullName, color, rgbColor);
-        darkThemeShadeMappings += getColorMapping(fullName_g, fullName, true);
+        darkThemeShadeMappings += getColorMapping(fullName_g, fullName);
+        lightThemeMappings += getColorMapping(fullName_g, invertColorName(fullName));
     }
 
-    globalDeclaration += '\n}';
-    lightThemeMappings += '\n}';
-    darkThemeColorMappings += '\n}';
-    darkThemeShadeMappings += '\n}';
-
-    return `${globalDeclaration}\n\n\n${lightThemeMappings}\n\n\n${darkThemeColorMappings}\n\n\n${darkThemeShadeMappings}\n\n\n${asciidocStyles}\n\n\n${mathStyles}`;
+    return `${baseCss}
+\n\n${globalDeclaration}\n}
+\n\n${combinedDeclaration}\n}
+\n\n${lightThemeMappings}\n}
+\n\n${darkThemeColorMappings}\n}
+\n\n${darkThemeShadeMappings}\n}
+\n\n${asciidocStyles}
+\n\n${mathStyles}`;
 }
 

@@ -55,53 +55,53 @@ const svgColors = [
         ['darkred',       '#8B0000'], // intuitive
         ['firebrick',     '#B22222'],
         ['maroon',        '#800000'],
-        ['brown',         '#A52A2A']], '--g-color-dark-red'],
+        ['brown',         '#A52A2A']], '--g-dark-red'],
 
     [[
         ['darkmagenta',   '#8B008B'],
         ['darkviolet',    '#9400D3'],
         ['darkorchid',    '#9932CC'],
         ['blueviolet',    '#8A2BE2'],
-        ['indigo',        '#4B0082']], '--g-color-dark-purple'],
+        ['indigo',        '#4B0082']], '--g-dark-purple'],
 
     [[
-        ['darkgreen',     '#006400']], '--g-color-dark-green'],
+        ['darkgreen',     '#006400']], '--g-dark-green'],
 
     [[
         ['darkblue',      '#00008B'], // intuitive
         ['midnightblue',  '#191970'],
-        ['navy',          '#000080']], '--g-color-dark-blue'],
+        ['navy',          '#000080']], '--g-dark-blue'],
 
     [[
-        ['chocolate',     '#D2691E']], '--g-color-dark-orange'],
+        ['chocolate',     '#D2691E']], '--g-dark-orange'],
 
     [[
         ['goldenrod',     '#DAA520'],
-        ['darkgoldenrod', '#B8860B']], '--g-color-dark-yellow'],
+        ['darkgoldenrod', '#B8860B']], '--g-dark-yellow'],
 
     [[
         ['darkcyan',      '#008B8B'], // intuitive
         ['lightseagreen', '#20B2AA'],
-        ['teal',          '#008080']], '--g-color-dark-cyan'],
+        ['teal',          '#008080']], '--g-dark-cyan'],
 
     // neutral colors
     [[
         ['red',           '#FF0000'], // intuitive
-        ['tomato',        '#FF6347']], '--g-color-red'],
+        ['tomato',        '#FF6347']], '--g-red'],
     [[
         ['purple',        '#800080'], // intuitive
         ['mediumpurple',  '#9370DB'],
-        ['magenta',       '#FF00FF']], '--g-color-purple'],
+        ['magenta',       '#FF00FF']], '--g-purple'],
     [[
-        ['green',         '#008000']], '--g-color-green'], // intuitive
+        ['green',         '#008000']], '--g-green'], // intuitive
     [[
-        ['blue',          '#0000FF']], '--g-color-blue'], // intuitive
+        ['blue',          '#0000FF']], '--g-blue'], // intuitive
     [[
-        ['darkorange',    '#FF8C00']], '--g-color-orange'],
+        ['darkorange',    '#FF8C00']], '--g-orange'],
     [[
-        ['yellow',        '#FFFF00']], '--g-color-yellow'], // intuitive
+        ['yellow',        '#FFFF00']], '--g-yellow'], // intuitive
     [[
-        ['cyan', 'aqua',  '#00FFFF']], '--g-color-cyan'], // intuitive
+        ['cyan', 'aqua',  '#00FFFF']], '--g-cyan'], // intuitive
 
     // light colors
     [[
@@ -109,31 +109,31 @@ const svgColors = [
         ['salmon',        '#FA8072'],
         ['pink',          '#FFC0CB'],
         ['lightsalmon',   '#FFA07A'],
-        ['indianred',     '#CD5C5C']], '--g-color-light-red'],
+        ['indianred',     '#CD5C5C']], '--g-light-red'],
 
     [[
         ['plum',          '#DDA0DD'],
         ['violet',        '#EE82EE'],
         ['magenta',       '#DA70D6'],
-        ['mediumorchid',  '#BA55D3']], '--g-color-light-purple'],
+        ['mediumorchid',  '#BA55D3']], '--g-light-purple'],
     [[
         ['lightgreen',    '#90EE90'], // intuitive
-        ['palegreen',     '#98FB98']], '--g-color-light-green'],
+        ['palegreen',     '#98FB98']], '--g-light-green'],
     [[
         ['powderblue',    '#B0E0E6'],
         ['lightblue',     '#ADD8E6'], // intuitive
         ['skyblue',       '#87CEEB'],
-        ['lightskyblue',  '#87CEFA']], '--g-color-light-blue'],
+        ['lightskyblue',  '#87CEFA']], '--g-light-blue'],
 
     [[
         ['orange',        '#FFA500'], 
-        ['coral',         '#FF7F50']], '--g-color-light-orange'],
+        ['coral',         '#FF7F50']], '--g-light-orange'],
 
     [[
-        ['gold',          '#FFD700']], '--g-color-light-yellow'],
+        ['gold',          '#FFD700']], '--g-light-yellow'],
     [[
         ['paleturquoise', '#AFEEEE'],
-        ['aquamarine',    '#7FFFD4']], '--g-color-light-cyan']
+        ['aquamarine',    '#7FFFD4']], '--g-light-cyan']
 ];
 let colorToVar: SSMap;
 let rgbColorToVar: Map<RgbColor, string>;
@@ -143,35 +143,35 @@ const svgShades = [
 
     // gray colors
     [[
-        ['ghostwhite',              '#F8F8FF']], '--g-color-light100-hard'],  // #F9F5D7
+        ['ghostwhite',              '#F8F8FF']], '--g-light100-hard'],  // #F9F5D7
     [[
-        ['white',                   '#FFFFFF']], '--g-color-light100'],       // #FBF1C7
+        ['white',                   '#FFFFFF']], '--g-light100'],       // #FBF1C7
     [[
-        ['seashell',                '#FFF5EE']], '--g-color-light100-soft'],  // #F2E5BC
+        ['seashell',                '#FFF5EE']], '--g-light100-soft'],  // #F2E5BC
     [[
-        ['snow',                    '#FFFAFA']], '--g-color-light90'],        // #EBDBB2                    
+        ['snow',                    '#FFFAFA']], '--g-light90'],        // #EBDBB2                    
     [[
-        ['whitesmoke',              '#F5F5F5']], '--g-color-light80'],        // #D5C4A1
+        ['whitesmoke',              '#F5F5F5']], '--g-light80'],        // #D5C4A1
     [[
-        ['lightgray', 'lightgrey',  '#D3D3D3']], '--g-color-light70'],        // #BDAE93
+        ['lightgray', 'lightgrey',  '#D3D3D3']], '--g-light70'],        // #BDAE93
     [[
-        ['silver',                  '#C0C0C0']], '--g-color-light60'],        // #A89984
+        ['silver',                  '#C0C0C0']], '--g-light60'],        // #A89984
 
-    //['--g-color-dark100-hard']                     // #1D2021 unused
+    //['--g-dark100-hard']                     // #1D2021 unused
     [[
-        ['black',                            '#000000']], '--g-color-dark100'],      // #282828           
+        ['black',                            '#000000']], '--g-dark100'],      // #282828           
     [[
-        ['dimgray', 'dimgrey',               '#696969']], '--g-color-dark100-soft'], // #32302F
+        ['dimgray', 'dimgrey',               '#696969']], '--g-dark100-soft'], // #32302F
     [[
-        ['darkslategray', 'darkslategrey',   '#2F4F4F']], '--g-color-dark90'],       // #3C3836
+        ['darkslategray', 'darkslategrey',   '#2F4F4F']], '--g-dark90'],       // #3C3836
     [[
-        ['slategray', 'slategrey',           '#708090']], '--g-color-dark80'],       // #504945
+        ['slategray', 'slategrey',           '#708090']], '--g-dark80'],       // #504945
     [[
-        ['lightslategray', 'lightslategrey', '#778899']], '--g-color-dark70'],       // #665C54
+        ['lightslategray', 'lightslategrey', '#778899']], '--g-dark70'],       // #665C54
     [[
-        ['gray', 'grey',                     '#808080']], '--g-color-dark60'],       // #7C6F64
+        ['gray', 'grey',                     '#808080']], '--g-dark60'],       // #7C6F64
     [[
-        ['darkgray', 'darkgrey',             '#A9A9A9']], '--g-color-gray'],         // #928374
+        ['darkgray', 'darkgrey',             '#A9A9A9']], '--g-gray'],         // #928374
 
 ];
 let shadeToVar: SSMap;
@@ -492,7 +492,7 @@ export class Processors {
                     const globalInvert = rcolor.type === 'color' ? globalColorInvert : globalShadeInvert;
 
                     if (globalInvert != localInvert) {
-                        rcolor.colorVar = invertColorName(rcolor.colorVar);
+                        rcolor.colorVar = rcolor.colorVar ? invertColorName(rcolor.colorVar) : undefined;
                     }
 
                     for (const param of params) {

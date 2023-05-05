@@ -13,7 +13,7 @@ export default class GraphvizPlugin extends Plugin {
     this.addSettingTab(new PluginSettingsTab(this));
     const processors = new Processors(this);
 
-    const colorCssPath = `${(this.app.vault.adapter as FileSystemAdapter).getBasePath()}/${this.app.vault.configDir}/plugins/${this.manifest.id}/colors.css`;
+    const colorCssPath = `${(this.app.vault.adapter as FileSystemAdapter).getBasePath()}/${this.app.vault.configDir}/plugins/${this.manifest.id}/styles.css`;
 
     if (!fs.existsSync(colorCssPath)) {
       fs.writeFileSync(colorCssPath, genCSS());

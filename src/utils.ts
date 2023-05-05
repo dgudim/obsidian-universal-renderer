@@ -67,10 +67,7 @@ export function isDefined(val: unknown): boolean {
     return !(val === undefined || val === null);
 }
 
-export function invertColorName(color: string | undefined) {
-    if (color === undefined) {
-        return undefined;
-    }
+export function invertColorName(color: string) {
     if (color.contains('light')) {
         return color.replace('light', 'dark');
     } else {
