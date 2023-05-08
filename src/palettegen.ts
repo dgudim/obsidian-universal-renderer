@@ -61,14 +61,14 @@ function getColorDeclaration(fullName: string, hexColor: string, rgbColor?: RgbC
     return declaration;
 }
 
-function getColorMapping(nameFrom: string, nameTo: string): string {
+function getColorMapping(target: string, declaration: string): string {
 
     let mapping = '';
 
-    mapping += `${nameFrom}: var(${nameTo});\n`;
-    mapping += `${nameFrom}_r: var(${nameTo}_r);\n`;
-    mapping += `${nameFrom}_g: var(${nameTo}_g);\n`;
-    mapping += `${nameFrom}_b: var(${nameTo}_b);\n\n`;
+    mapping += `${target}: var(${declaration});\n`;
+    mapping += `${target}_r: var(${declaration}_r);\n`;
+    mapping += `${target}_g: var(${declaration}_g);\n`;
+    mapping += `${target}_b: var(${declaration}_b);\n\n`;
 
     return mapping;
 }
@@ -96,20 +96,20 @@ export function genCSS(): string {
             const shortType = type ? type[0] + '-' : '';
 
             const shortName = `${shortType}${name}`;
-            const fullName = `--theme-${fullType}${name}`;
-            const fullName_inverted = invertColorName(fullName);
-            const fullName_g = `--g-${fullType}${name}`;
+            const declarationName = `--theme-${fullType}${name}`;
+            const fullName_inverted = invertColorName(declarationName);
+            const targetFullName = `--g-${fullType}${name}`;
 
-            globalDeclaration += getColorDeclaration(fullName, color, rgbColor);
+            globalDeclaration += getColorDeclaration(declarationName, color, rgbColor);
 
-            asciidocStyles += `.block-language-asciidoc td.tableblock:has(.${shortName}-cell) { background: var(${fullName}); }\n`;
-            asciidocStyles += `.block-language-asciidoc .${shortName} { color: var(${fullName}); }\n\n`;
+            asciidocStyles += `.block-language-asciidoc td.tableblock:has(.${shortName}-cell) { background: var(${targetFullName}); }\n`;
+            asciidocStyles += `.block-language-asciidoc .${shortName} { color: var(${targetFullName}); }\n\n`;
 
             if (!type) {
-                combinedDeclaration += getColorDeclaration(fullName_g, color, rgbColor);
+                combinedDeclaration += getColorDeclaration(targetFullName, color, rgbColor);
             } else {
-                darkThemeColorMappings += getColorMapping(fullName_g, fullName);
-                lightThemeMappings += getColorMapping(fullName_g, fullName_inverted);
+                darkThemeColorMappings += getColorMapping(targetFullName, declarationName);
+                lightThemeMappings += getColorMapping(targetFullName, fullName_inverted);
             }
         }
         mathStyles += `
