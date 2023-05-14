@@ -26,6 +26,7 @@ const svgStyleTags = ['fill', 'stroke'] as const;
 type SvgStyleTagType = typeof svgStyleTags[number];
 
 //@ts-format-ignore-region
+// implicic fill / stroke
 const svgTags: Map<string, SvgStyleTagType[]> = new Map([
     [ 'text',     ['fill'] ],
     [ 'path',     ['fill'] ],
