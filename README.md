@@ -1,10 +1,11 @@
 # Obsidian universal renderer
 
-> :warning: I made this plugin for myself, it may now work properly on onther systems and it lacks fancy GUI settings
+> **Warning** <br>
+> I made this plugin for myself, it may now work properly on other systems and it lacks fancy GUI settings
 
 Render various diagrams and generate dynamic svgs in [Obsidian](https://obsidian.md). (Similar to [Obsidian kroki](https://github.com/gregzuro/obsidian-kroki))
 
-> :information_source: Note:
+> **Note** <br>
 > This plugin uses system packages for diagram rendering (`js` ports are *slow*, I wanted something native)
 
 ## Supported diagrams
@@ -63,7 +64,7 @@ Various parameters can be specified before the diagram code similar to *obsidian
 
 ### Example
 
-````
+````sh
 ```
 ---
 invert-shade:1
@@ -96,7 +97,7 @@ There are also presets which are applied by default
 2. Modify `presets` constant to your liking, presets can contain any [graph parameters](#graph-parameters)
 3. Rebuild the plugin
 
-> :information_source: Note: 
+> **Note** <br>
 > Presets starting with `default-`<[diagram type](#supported-diagrams)> will be applied by default to that diagram type
 
 ## Refgraph
@@ -104,7 +105,7 @@ There are also presets which are applied by default
 A special diagram type, usefull for reducing code duplication, just displays an already rendered graph
 
 Syntax is as follows:
-````
+````sh
 ```refgraph
 <graph name>
 ```
@@ -117,6 +118,7 @@ Graph name is set by a `name`/`ref-name`/`graph-name` parameter (See [graph para
 This is not even a graph, the aim of this codeblock is to make your svgs follow the defined color scheme (For example you have a black svg and it looks bad in dark theme)
  
 Syntax and example:
+````ruby
 ```dynamic-svg
 ---
 invert-shade
@@ -124,8 +126,9 @@ width:100%
 ---
 [[file name]]
 ```
+````
 
 Here we take some svg, make it follow the color scheme (See [customizing diagram colors](#customizing-diagram-colors)) and invert it's shades (black to white, etc.)
 
-> :information_source: Note:
+> **Note** <br>
 > This doesn't work well for non-optimized large svgs or with complex svgs
