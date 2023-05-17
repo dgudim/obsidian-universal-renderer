@@ -29,6 +29,7 @@ type SvgStyleTagType = typeof svgStyleTags[number];
 // implicic fill / stroke
 const svgTags: Map<string, SvgStyleTagType[]> = new Map([
     [ 'text',     ['fill'] ],
+    [ 'tspan',    ['fill'] ],
     [ 'path',     ['fill'] ],
     [ 'rect',     ['fill'] ],
     [ 'circle',   ['fill'] ],
