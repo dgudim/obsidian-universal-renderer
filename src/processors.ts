@@ -469,6 +469,11 @@ export class Processors {
                     element.setAttribute('xlink:href', `${linkId}-${hash}`);
                 }
 
+                const clipPath = element.getAttribute('clip-path');
+                if (clipPath?.startsWith('url(#')) {
+                    element.setAttribute('clip-path', `url(#${clipPath.substring(5, clipPath.length - 1)}-${hash})`);
+                }
+
                 for (const svgStyleTag of svgStyleTags) {
 
                     const styleTagValue = element.getAttribute(svgStyleTag);
