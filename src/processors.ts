@@ -19,7 +19,7 @@ export const renderTypes = [
     'dot', 'latex',
     'ditaa', 'blockdiag', 'asciidoc',
     'refgraph', 'dynamic-svg',
-    'plantuml'] as const;
+    'plantuml', 'typst'] as const;
 type RenderType = typeof renderTypes[number];
 
 const svgStyleTags = ['fill', 'stroke'] as const;
@@ -202,7 +202,10 @@ const presets = new Map<string, Map<string, string>>([
         ['width', '100%'],
         ['doc-start', '@startuml'],
         ['doc-end', '@enduml']
-    ])]
+    ])],
+    ['default-typst', new Map<string, string>([
+        ['invert-shade', '1']
+    ])],
 ]);
 
 function transformColorMap(colorList: (string | string[][])[][]): { colorToVar: SSMap, hexToVar: Map<RgbColor, string> } {
@@ -381,6 +384,22 @@ export class Processors {
                         {
                             path: this.pluginSettings.plantumlPath,
                             options: ['-nbthread', 'auto', '-failfast2', '-tsvg', '-nometadata', '-overwrite', inputFile]
+                        }
+                    ],
+                    skipDynamicSvg: false,
+                };
+            case 'typst':
+                return {
+                    execParams: [
+                        {
+                            path: this.pluginSettings.typstPath,
+                            options: ['compile', inputFile, `${inputFile}.pdf`]
+                        }, {
+                            path: this.pluginSettings.pdfCropPath,
+                            options: [`${inputFile}.pdf`]
+                        }, {
+                            path: this.pluginSettings.pdf2svgPath,
+                            options: [`${inputFile}-crop.pdf`, outputFile]
                         }
                     ],
                     skipDynamicSvg: false,

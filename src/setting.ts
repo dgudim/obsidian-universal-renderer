@@ -10,6 +10,7 @@ export type PluginSettings = {
   ditaaPath: string;
   asciidocPath: string;
   plantumlPath: string;
+  typstPath: string;
 }
 
 export const DEFAULT_SETTINGS: PluginSettings = {
@@ -21,6 +22,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   ditaaPath: 'ditaa',
   asciidocPath: 'asciidoctor',
   plantumlPath: 'plantuml',
+  typstPath: 'typst',
 };
 
 export class PluginSettingsTab extends PluginSettingTab {

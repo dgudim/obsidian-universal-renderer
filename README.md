@@ -20,6 +20,7 @@ Render various diagrams and generate dynamic svgs in [Obsidian](https://obsidian
 | blockdiag | [blockdiag.com](http://blockdiag.com/en/) | blockdiag |
 | asciidoc | [asciidoc.org](http://asciidoc.org) | asciidoc |
 | plantuml | [plantuml.com](http://plantuml.com/) | plantuml |
+| typst | [typst.app](https://typst.app/) | typst |
 
 ### Special diagrams
 
