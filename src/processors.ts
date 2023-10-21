@@ -588,7 +588,9 @@ export class Processors {
             svg.setAttribute('style', `width:${width};`);
         }
 
-        this.parseSvgLayer(svg, conversionParams, [], hash);
+        if(!conversionParams.has('inline')) {
+          this.parseSvgLayer(svg, conversionParams, [], hash);
+        }
 
         return {
             svgData: DOM.serialize()
