@@ -3,12 +3,12 @@
 <img src="https://github.com/dgudim/obsidian-universal-renderer/assets/34401005/744f735e-1008-44f0-adec-c1d7c8275833" height=150 id="icon"></img>
 <img src="https://github.com/dgudim/obsidian-universal-renderer/assets/34401005/b39d1054-f054-4b32-9954-43ab20c5e3bd" height=0 id="thumb"></img>
 
-> **Warning** <br>
+> **Warning**
 > I made this plugin for myself, it may now work properly on other systems and it lacks fancy GUI settings
 
 Render various diagrams and generate dynamic svgs in [Obsidian](https://obsidian.md). (Similar to [Obsidian kroki](https://github.com/gregzuro/obsidian-kroki))
 
-> **Note** <br>
+> **Note**
 > This plugin uses system packages for diagram rendering (`js` ports are *slow*, I wanted something native)
 
 ## Supported diagrams
@@ -101,7 +101,7 @@ There are also presets which are applied by default
 2. Modify `presets` constant to your liking, presets can contain any [graph parameters](#graph-parameters)
 3. Rebuild the plugin
 
-> **Note** <br>
+> **Note**
 > Presets starting with `default-`<[diagram type](#supported-diagrams)> will be applied by default to that diagram type
 
 ## Refgraph
@@ -134,5 +134,5 @@ width:100%
 
 Here we take some svg, make it follow the color scheme (See [customizing diagram colors](#customizing-diagram-colors)) and invert it's shades (black to white, etc.)
 
-> **Note** <br>
+> **Note**
 > This doesn't work well for non-optimized large svgs or with complex svgs
