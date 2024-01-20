@@ -1,7 +1,7 @@
 <h1 id="title">Obsidian universal renderer</h1>
 
-<img src="https://github.com/dgudim/obsidian-universal-renderer/assets/34401005/744f735e-1008-44f0-adec-c1d7c8275833" height=150 id="icon"></img>
-<img src="https://github.com/dgudim/obsidian-universal-renderer/assets/34401005/b39d1054-f054-4b32-9954-43ab20c5e3bd" height=0 id="thumb"></img>
+<img src="https://github.com/dgudim/obsidian-universal-renderer/blob/master/assets/icon.png" height=150 id="icon"></img>
+<img src="https://github.com/dgudim/obsidian-universal-renderer/blob/master/assets/thumb.png" height=0 id="thumb"></img>
 
 > **Warning**
 > I made this plugin for myself, it may now work properly on other systems and it lacks fancy GUI settings
