@@ -1,18 +1,15 @@
-/* eslint-disable no-case-declarations */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable no-constant-condition */
-import { DataAdapter, MarkdownPostProcessorContext, MetadataCache } from 'obsidian';
+import type { DataAdapter, MarkdownPostProcessorContext, MetadataCache } from 'obsidian';
 import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
 import { JSDOM } from 'jsdom';
 import { spawn } from 'child_process';
-import GraphvizPlugin from './main';
+import type GraphvizPlugin from './main';
 
-import { PluginSettings } from './setting';
+import type { PluginSettings } from './setting';
 
 import * as crypto from 'crypto';
-import { RgbColor, findClosestColorVar, getColorDelta, hexToRgb, invertColorName, isDefined, readFileString, rgb100ToHex } from './utils';
+import { type RgbColor, findClosestColorVar, getColorDelta, hexToRgb, invertColorName, isDefined, readFileString, rgb100ToHex } from './utils';
 const md5 = (contents: string) => crypto.createHash('md5').update(contents).digest('hex');
 
 export const renderTypes = [
@@ -253,17 +250,17 @@ function mapColor(sourceColor: string): {
 
     const sourceRgbColor = hexToRgb(sourceColor);
 
-    if (!isDefined(colorVar) && !isDefined(shadeVar) && isDefined(sourceRgbColor)) {
-        const closestColor = findClosestColorVar(sourceRgbColor!, rgbColorToVar);
-        const closestShade = findClosestColorVar(sourceRgbColor!, rgbShadeToVar);
+    if (!isDefined(colorVar) && !isDefined(shadeVar) && sourceRgbColor !== undefined) {
+        const closestColor = findClosestColorVar(sourceRgbColor, rgbColorToVar);
+        const closestShade = findClosestColorVar(sourceRgbColor, rgbShadeToVar);
         if (closestColor.delta < closestShade.delta) {
             colorVar = closestColor.var;
             delta = closestColor.delta;
-            deltaColor = getColorDelta(sourceRgbColor!, closestColor.foundColor);
+            deltaColor = getColorDelta(sourceRgbColor, closestColor.foundColor);
         } else {
             shadeVar = closestShade.var;
             delta = closestShade.delta;
-            deltaColor = getColorDelta(sourceRgbColor!, closestShade.foundColor);
+            deltaColor = getColorDelta(sourceRgbColor, closestShade.foundColor);
         }
     }
 
@@ -275,7 +272,9 @@ function mapColor(sourceColor: string): {
             deltaColor: deltaColor,
             sourceColor: sourceRgbColor
         };
-    } else if (isDefined(shadeVar)) {
+    }
+    
+    if (isDefined(shadeVar)) {
         return {
             colorVar: shadeVar,
             type: 'shade',
@@ -296,10 +295,13 @@ function mapColor(sourceColor: string): {
 
 function parseColor(tagColor: string): string {
     if (tagColor.startsWith('rgb')) {
-        tagColor = rgb100ToHex(tagColor.replaceAll(rgbRegex_g, '').split(','));
-    } else if (tagColor.startsWith(('#')) && tagColor.length == 4) {
-        tagColor = `#${tagColor[1]}${tagColor[1]}${tagColor[2]}${tagColor[2]}${tagColor[3]}${tagColor[3]}`;
+        return rgb100ToHex(tagColor.replaceAll(rgbRegex_g, '').split(','));
     }
+    
+    if (tagColor.startsWith(('#')) && tagColor.length === 4) {
+        return `#${tagColor[1]}${tagColor[1]}${tagColor[2]}${tagColor[2]}${tagColor[3]}${tagColor[3]}`;
+    }
+    
     return tagColor;
 }
 
@@ -424,12 +426,12 @@ export class Processors {
             const process = spawn(cmdPath, parameters);
             let errData = '';
             process.stderr.on('data', (data) => { errData += data; });
-            process.on('error', (err: Error) => reject(`"${cmdPath} ${parameters}" failed, ${err}`));
+            process.on('error', (err: Error) => reject(new Error(`"${cmdPath} ${parameters}" failed, ${err}`)));
             process.stdin.end();
 
             process.on('exit', (code) => {
                 if (code !== 0) {
-                    return reject(`"${cmdPath} ${parameters}" failed, error code: ${code}, stderr: ${errData}`);
+                    return reject(new Error(`"${cmdPath} ${parameters}" failed, error code: ${code}, stderr: ${errData}`));
                 }
                 resolve('ok');
             });
@@ -461,7 +463,7 @@ export class Processors {
         for (const element of node.children) {
             const id = element.id;
             if (id) {
-                element.id += '-' + hash;
+                element.id += `-${hash}`;
             }
             this.makeIdsUnique(element, hash);
         }
@@ -477,110 +479,118 @@ export class Processors {
 
             if (tagName === 'defs') {
                 this.makeIdsUnique(element, hash);
-            } else if (svgTags.has(tagName)) {
+                continue;
+            } 
+            
+            const tagImplicitParamFlags = svgTags.get(tagName);
 
-                const tagImplicitParamFlags = svgTags.get(tagName)!;
-                const tagParams: string[] = [];
-                let style = '';
-
-                const linkId = element.getAttribute('xlink:href');
-                if (linkId) {
-                    element.setAttribute('xlink:href', `${linkId}-${hash}`);
-                }
-
-                const clipPath = element.getAttribute('clip-path');
-                if (clipPath?.startsWith('url(#')) {
-                    element.setAttribute('clip-path', `url(#${clipPath.substring(5, clipPath.length - 1)}-${hash})`);
-                }
-
-                for (const svgStyleTag of svgStyleTags) {
-
-                    const styleTagValue = element.getAttribute(svgStyleTag);
-                    element.removeAttribute(svgStyleTag);
-
-                    const params = (conversionParams.get(`${tagName}-${svgStyleTag}`) || '').split(',');
-
-                    if (!styleTagValue && (inheritedParams.contains(svgStyleTag) || !(tagImplicitParamFlags.contains(svgStyleTag) || params.contains('implicit')))) {
-                        continue;
-                    }
-
-                    const tagColor = styleTagValue ? parseColor(styleTagValue) : 'black';
-                    const rcolor = params.contains('skip') ? undefined : mapColor(tagColor);
-
-                    if (!rcolor || !rcolor.colorVar) {
-                        // skip it, use the original value
-                        style += `${svgStyleTag}:${tagColor};`;
-                        tagParams.push(svgStyleTag);
-                        continue;
-                    }
-
-                    const localInvert = params.contains(`invert-${rcolor.type}`) || params.contains('invert-all');
-                    const globalInvert = rcolor.type === 'color' ? globalColorInvert : globalShadeInvert;
-
-                    if (globalInvert != localInvert) {
-                        rcolor.colorVar = rcolor.colorVar ? invertColorName(rcolor.colorVar) : undefined;
-                    }
-
-                    for (const param of params) {
-                        switch (param) {
-                            case 'keep-color':
-                                element.classList.add('keep-color');
-                                break;
-                            case 'keep-shade':
-                                element.classList.add('keep-shade');
-                                break;
-                            case 'keep-all':
-                                element.classList.add('keep-shade');
-                                element.classList.add('keep-color');
-                                break;
-                        }
-                    }
-
-                    const mixMultiplier = parseFloat(conversionParams.get('mix-multiplier') || '0');
-
-                    if (mixMultiplier && rcolor.delta) {
-
-                        const mixMode = conversionParams.get('mix-mode') || '';
-                        const inverseMixMultiplier = 1 - mixMultiplier;
-
-                        switch (mixMode) {
-                            case 'mix':
-                                const col = rcolor.sourceColor!;
-                                style += `${svgStyleTag}:rgb(
-                                    clamp(0, calc(${col.r * mixMultiplier} + ${inverseMixMultiplier} * var(${rcolor.colorVar}_r)), 255), 
-                                    clamp(0, calc(${col.g * mixMultiplier} + ${inverseMixMultiplier} * var(${rcolor.colorVar}_g)), 255), 
-                                    clamp(0, calc(${col.b * mixMultiplier} + ${inverseMixMultiplier} * var(${rcolor.colorVar}_b)), 255));`;
-                                break;
-                            case 'delta':
-                            default:
-                                const cdlt = rcolor.deltaColor!;
-                                style += `${svgStyleTag}:rgb(
-                                    clamp(0, calc(var(${rcolor.colorVar}_r) + ${cdlt.r * mixMultiplier}), 255), 
-                                    clamp(0, calc(var(${rcolor.colorVar}_g) + ${cdlt.g * mixMultiplier}), 255), 
-                                    clamp(0, calc(var(${rcolor.colorVar}_b) + ${cdlt.b * mixMultiplier}), 255));`;
-                        }
-                    } else {
-                        style += `${svgStyleTag}:var(${rcolor.colorVar});`;
-                    }
-
-                    tagParams.push(svgStyleTag);
-                }
-
-                if (element.children.length > 0) {
-                    this.parseSvgLayer(element, conversionParams, tagParams.concat(inheritedParams), hash);
-                }
-                element.setAttribute('style', style);
-
+            if (!tagImplicitParamFlags) {
+                continue;
             }
+
+            const tagParams: string[] = [];
+            let style = '';
+
+            const linkId = element.getAttribute('xlink:href');
+            if (linkId) {
+                element.setAttribute('xlink:href', `${linkId}-${hash}`);
+            }
+
+            const clipPath = element.getAttribute('clip-path');
+            if (clipPath?.startsWith('url(#')) {
+                element.setAttribute('clip-path', `url(#${clipPath.substring(5, clipPath.length - 1)}-${hash})`);
+            }
+
+            for (const svgStyleTag of svgStyleTags) {
+
+                const styleTagValue = element.getAttribute(svgStyleTag);
+                element.removeAttribute(svgStyleTag);
+
+                const params = (conversionParams.get(`${tagName}-${svgStyleTag}`) ?? '').split(',');
+
+                if (!styleTagValue && (inheritedParams.contains(svgStyleTag) || !(tagImplicitParamFlags.contains(svgStyleTag) || params.contains('implicit')))) {
+                    continue;
+                }
+
+                const tagColor = styleTagValue ? parseColor(styleTagValue) : 'black';
+                const rcolor = params.contains('skip') ? undefined : mapColor(tagColor);
+
+                if (!rcolor?.colorVar) {
+                    // skip it, use the original value
+                    style += `${svgStyleTag}:${tagColor};`;
+                    tagParams.push(svgStyleTag);
+                    continue;
+                }
+
+                const localInvert = params.contains(`invert-${rcolor.type}`) || params.contains('invert-all');
+                const globalInvert = rcolor.type === 'color' ? globalColorInvert : globalShadeInvert;
+
+                if (globalInvert !== localInvert) {
+                    rcolor.colorVar = rcolor.colorVar ? invertColorName(rcolor.colorVar) : undefined;
+                }
+
+                for (const param of params) {
+                    switch (param) {
+                        case 'keep-color':
+                            element.classList.add('keep-color');
+                            break;
+                        case 'keep-shade':
+                            element.classList.add('keep-shade');
+                            break;
+                        case 'keep-all':
+                            element.classList.add('keep-shade');
+                            element.classList.add('keep-color');
+                            break;
+                    }
+                }
+
+                const mixMultiplier = Number.parseFloat(conversionParams.get('mix-multiplier') ?? '0');
+
+                if (mixMultiplier && rcolor.delta) {
+
+                    const mixMode = conversionParams.get('mix-mode') ?? '';
+                    const inverseMixMultiplier = 1 - mixMultiplier;
+
+                    const col = rcolor.sourceColor;
+                    const cdlt = rcolor.deltaColor;
+
+                    switch (mixMode) {
+                        case 'mix':
+                            style += `${svgStyleTag}:rgb(
+                                clamp(0, calc(${col!.r * mixMultiplier} + ${inverseMixMultiplier} * var(${rcolor.colorVar}_r)), 255), 
+                                clamp(0, calc(${col!.g * mixMultiplier} + ${inverseMixMultiplier} * var(${rcolor.colorVar}_g)), 255), 
+                                clamp(0, calc(${col!.b * mixMultiplier} + ${inverseMixMultiplier} * var(${rcolor.colorVar}_b)), 255));`;
+                            break;
+                        case 'delta':
+                        default:
+                            
+                            style += `${svgStyleTag}:rgb(
+                                clamp(0, calc(var(${rcolor.colorVar}_r) + ${cdlt!.r * mixMultiplier}), 255), 
+                                clamp(0, calc(var(${rcolor.colorVar}_g) + ${cdlt!.g * mixMultiplier}), 255), 
+                                clamp(0, calc(var(${rcolor.colorVar}_b) + ${cdlt!.b * mixMultiplier}), 255));`;
+                    }
+                } else {
+                    style += `${svgStyleTag}:var(${rcolor.colorVar});`;
+                }
+
+                tagParams.push(svgStyleTag);
+            }
+
+            if (element.children.length > 0) {
+                this.parseSvgLayer(element, conversionParams, tagParams.concat(inheritedParams), hash);
+            }
+            element.setAttribute('style', style);
+
         }
     }
 
     private makeDynamicSvg(svgSource: string, conversionParams: SSMap, hash: string): { svgData: string } {
         // replace colors with dynamic colors
         const DOM = new JSDOM(svgSource, { contentType: 'image/svg+xml' });
-        const svg = DOM.window.document.querySelector('svg')!;
+        const svg = DOM.window.document.querySelector('svg');
+
         if (!svg) {
-            throw new Error('failed farsing svg source');
+            throw new Error('failed parsing svg source');
         }
 
         const width = conversionParams.get('width');
@@ -599,23 +609,24 @@ export class Processors {
 
     private preprocessSource(type: RenderType, source: string, outputFile: string): { source: string, extras: SSMap } {
         let conversionParams = new Map<string, string>();
+        let processedSource = source;
 
-        if (source.startsWith('---')) {
+        if (processedSource.startsWith('---')) {
 
-            const lastIndex = source.indexOf('---', 3);
-            const frontMatter = source.substring(3, lastIndex);
+            const lastIndex = processedSource.indexOf('---', 3);
+            const frontMatter = processedSource.substring(3, lastIndex);
             conversionParams = new Map(frontMatter.trim().split('\n').map((parameter) => {
                 const parameter_split = parameter.split(':');
-                if (parameter_split.length == 1) {
+                if (parameter_split.length === 1) {
                     parameter_split.push('1');
                 }
                 return [parameter_split[0].trim(), parameter_split[1].trim()];
             }));
 
-            source = source.substring(lastIndex + 3);
+            processedSource = processedSource.substring(lastIndex + 3);
         }
 
-        const preset = presets.get(conversionParams.get('preset') || `default-${type}`);
+        const preset = presets.get(conversionParams.get('preset') ?? `default-${type}`);
         if (preset) {
             for (const [preset_key, preset_value] of preset) {
                 if (!conversionParams.has(preset_key)) {
@@ -635,15 +646,15 @@ export class Processors {
                     });
                     break;
                 case 'doc-start':
-                    source = param_value + '\n' + source;
+                    processedSource = `${param_value}\n${processedSource}`;
                     break;
                 case 'doc-end':
-                    source = source + '\n' + param_value;
+                    processedSource = `${processedSource}\n${param_value}`;
             }
         }
 
         return {
-            source: source,
+            source: processedSource,
             extras: conversionParams
         };
     }
@@ -701,7 +712,7 @@ export class Processors {
             el.innerHTML = image.svgData;
 
         } catch (errMessage) {
-            console.error('convert to image error: ' + errMessage);
+            console.error(`convert to image error: ${errMessage}`);
             const pre = document.createElement('pre');
             const code = document.createElement('code');
             code.setText(errMessage);

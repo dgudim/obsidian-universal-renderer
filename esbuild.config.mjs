@@ -1,5 +1,5 @@
 import esbuild from 'esbuild';
-import process from 'process';
+import process from 'node:process';
 import builtins from 'builtin-modules';
 
 const banner =
@@ -32,6 +32,7 @@ const context = await esbuild.context({
 		'@lezer/highlight',
 		'@lezer/lr',
 		...builtins],
+	alias: { punycode: 'punycode' },
 	format: 'cjs',
 	target: 'es2018',
 	logLevel: 'info',

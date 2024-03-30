@@ -1,5 +1,5 @@
 import { PluginSettingTab, Setting } from 'obsidian';
-import GraphvizPlugin from './main';
+import type GraphvizPlugin from './main';
 
 export type PluginSettings = {
   dotPath: string;

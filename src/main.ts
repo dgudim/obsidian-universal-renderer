@@ -1,5 +1,5 @@
-import { FileSystemAdapter, Plugin } from 'obsidian';
-import { DEFAULT_SETTINGS, PluginSettings, PluginSettingsTab } from './setting';
+import { type FileSystemAdapter, Plugin } from 'obsidian';
+import { DEFAULT_SETTINGS, type PluginSettings, PluginSettingsTab } from './setting';
 import { Processors, renderTypes } from './processors';
 import * as fs from 'fs';
 import { genCSS } from './palettegen';
@@ -31,7 +31,7 @@ export default class GraphvizPlugin extends Plugin {
   }
 
   async loadSettings(): Promise<void> {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.settings = { ...DEFAULT_SETTINGS, ...await this.loadData()};
     return Promise.resolve();
   }
 

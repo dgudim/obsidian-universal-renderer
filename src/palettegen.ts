@@ -1,4 +1,4 @@
-import { RgbColor, hexToRgb, invertColorName } from 'src/utils.js';
+import { type RgbColor, hexToRgb, invertColorName } from 'src/utils.js';
 
 type ColorType = 'dark' | '' | 'light';
 
@@ -92,8 +92,8 @@ export function genCSS(): string {
         for (const [type, color] of unionColor) {
             const rgbColor = hexToRgb(color);
 
-            const fullType = type ? type + '-' : '';
-            const shortType = type ? type[0] + '-' : '';
+            const fullType = type ? `${type}-` : '';
+            const shortType = type ? `${type[0]}-` : '';
 
             const shortName = `${shortType}${name}`;
             const declarationName = `--theme-${fullType}${name}`;
