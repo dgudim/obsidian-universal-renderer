@@ -31,11 +31,23 @@ Render various diagrams and generate dynamic svgs in [Obsidian](https://obsidian
 
 ## Installation
 
+### From the releases
+
+- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `<VaultFolder>/.obsidian/plugins/obsidian-universal-renderer/` from the releases section
+
+### Manually
+
 - Clone this repository
 - `npm i` or `yarn` to install dependencies
 - `npm run build`
 - Copy over `main.js`, `styles.css`, `manifest.json` to your vault `<VaultFolder>/.obsidian/plugins/obsidian-universal-renderer/`.
 - Install `graphviz, latex, asciidoc` and other packages via your system package manager (you can customize executable file locations in plugin settings)
+
+### Via BRAT
+
+- Install the BRAT plugin via Community Plugin Search
+- [Read the docs](https://tfthacker.com/BRAT)
+- Add https://github.com/dgudim/obsidian-universal-renderer
 
 Alternatively, you can also use [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin
 
