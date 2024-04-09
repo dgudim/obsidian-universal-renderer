@@ -12,7 +12,7 @@ Render various diagrams and generate dynamic svgs in [Obsidian](https://obsidian
 > This plugin uses system packages for diagram rendering (`js` ports are *slow*, I wanted something native)
 
 ## Supported diagrams
-| Diagram | Doc | Codeblock tag | 
+| Diagram | Doc | Codeblock tag |
 | - | - | - |
 | graphviz | [graphviz.org](https://graphviz.org/) | dot |
 | latex | [latex-project.org](https://www.latex-project.org/) | latex |
@@ -36,6 +36,8 @@ Render various diagrams and generate dynamic svgs in [Obsidian](https://obsidian
 - `npm run build`
 - Copy over `main.js`, `styles.css`, `manifest.json` to your vault `<VaultFolder>/.obsidian/plugins/obsidian-universal-renderer/`.
 - Install `graphviz, latex, asciidoc` and other packages via your system package manager (you can customize executable file locations in plugin settings)
+
+Alternatively, you can also use [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin
 
 ## Usage
 - Create a fenced codeblock using one of the diagram types supported by renderer as the language (See a list of [supported diagrams](#supported-diagrams))
