@@ -438,7 +438,7 @@ export class Processors {
         });
     }
 
-    private async writeRenderedFile(inputFile: string, outputFile: string, type: RenderType, conversionParams: SSMap, hash: string): Promise<{ svgData: string; }> {
+    private async writeRenderedFile(inputFile: string, outputFile: string, type: RenderType, conversionParams: SSMap, hash: string): Promise<JSDOM | string> {
 
         const renderer = this.getRendererParameters(type, inputFile, outputFile);
 
@@ -450,13 +450,11 @@ export class Processors {
 
         if (!renderer.skipDynamicSvg) {
             const svg = this.makeDynamicSvg(renderedContent, conversionParams, hash);
-            fs.writeFileSync(outputFile, svg.svgData);
+            fs.writeFileSync(outputFile, this.domToString(svg));
             return svg;
         }
 
-        return {
-            svgData: renderedContent
-        };
+        return renderedContent;
     }
 
     private makeIdsUnique(node: Element, hash: string) {
@@ -584,9 +582,23 @@ export class Processors {
         }
     }
 
-    private makeDynamicSvg(svgSource: string, conversionParams: SSMap, hash: string): { svgData: string } {
+    private svgToDom(svgSource: string | JSDOM): JSDOM {
+        if(svgSource instanceof JSDOM) {
+            return svgSource;
+        }
+        return new JSDOM(svgSource, { contentType: 'image/svg+xml' });
+    }
+
+    private domToString(svgSource: string | JSDOM): string {
+        if(svgSource instanceof JSDOM) {
+            return svgSource.serialize();
+        }
+        return svgSource;
+    }
+
+    private makeDynamicSvg(svgSource: string, conversionParams: SSMap, hash: string): JSDOM {
         // replace colors with dynamic colors
-        const DOM = new JSDOM(svgSource, { contentType: 'image/svg+xml' });
+        const DOM = this.svgToDom(svgSource);
         const svg = DOM.window.document.querySelector('svg');
 
         if (!svg) {
@@ -602,9 +614,7 @@ export class Processors {
           this.parseSvgLayer(svg, conversionParams, [], hash);
         }
 
-        return {
-            svgData: DOM.serialize()
-        };
+        return DOM;
     }
 
     private preprocessSource(type: RenderType, source: string, outputFile: string): { source: string, extras: SSMap } {
@@ -659,16 +669,14 @@ export class Processors {
         };
     }
 
-    private async renderImage(type: RenderType, source: string): Promise<{ svgData: string }> {
+    private async renderImage(type: RenderType, source: string): Promise<JSDOM | string> {
 
         if (type === 'refgraph') {
             const graphData = this.referenceGraphMap.get(source.trim());
             if (!graphData) {
                 throw Error(`Graph with name ${source} does not exist`);
             }
-            return {
-                svgData: readFileString(graphData.sourcePath)
-            };
+            return readFileString(graphData.sourcePath);
         }
 
         const temp_dir = getTempDir(type);
@@ -694,9 +702,7 @@ export class Processors {
         if (!fs.existsSync(inputFile)) {
             fs.writeFileSync(inputFile, graphData.source);
         } else if (fs.existsSync(outputFile)) {
-            return {
-                svgData: readFileString(outputFile)
-            };
+            return readFileString(outputFile);
         }
 
         return this.writeRenderedFile(inputFile, outputFile, type, graphData.extras, graph_hash);
@@ -708,8 +714,8 @@ export class Processors {
 
             const image = await this.renderImage(type, source.trim());
 
-            el.classList.add('multi-graph');
-            el.innerHTML = image.svgData;
+            el.addClass('multi-graph');
+            el.innerHTML = this.domToString(image);
 
         } catch (errMessage) {
             console.error(`convert to image error: ${errMessage}`);

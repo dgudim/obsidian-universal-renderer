@@ -33,14 +33,14 @@ Render various diagrams and generate dynamic svgs in [Obsidian](https://obsidian
 
 ### From the releases
 
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `<VaultFolder>/.obsidian/plugins/obsidian-universal-renderer/` from the releases section
+- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `<VaultFolder>/.obsidian/plugins/universal-renderer/` from the releases section
 
 ### Manually
 
 - Clone this repository
 - `npm i` or `yarn` to install dependencies
 - `npm run build`
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `<VaultFolder>/.obsidian/plugins/obsidian-universal-renderer/`.
+- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `<VaultFolder>/.obsidian/plugins/universal-renderer/`.
 - Install `graphviz, latex, asciidoc` and other packages via your system package manager (you can customize executable file locations in plugin settings)
 
 ### Via BRAT
