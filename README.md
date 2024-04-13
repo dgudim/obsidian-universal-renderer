@@ -45,11 +45,9 @@ Render various diagrams and generate dynamic svgs in [Obsidian](https://obsidian
 
 ### Via BRAT
 
-- Install the BRAT plugin via Community Plugin Search
+- Install the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin via Community Plugin Search
 - [Read the docs](https://tfthacker.com/BRAT)
 - Add https://github.com/dgudim/obsidian-universal-renderer
-
-Alternatively, you can also use [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin
 
 ## Usage
 - Create a fenced codeblock using one of the diagram types supported by renderer as the language (See a list of [supported diagrams](#supported-diagrams))
