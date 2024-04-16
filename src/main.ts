@@ -1,4 +1,4 @@
-import { FileSystemAdapter, Plugin } from 'obsidian';
+import { Plugin } from 'obsidian';
 import {
 	DEFAULT_SETTINGS,
 	type PluginSettings,
@@ -16,18 +16,7 @@ export default class GraphvizPlugin extends Plugin {
 		this.addSettingTab(new PluginSettingsTab(this));
 		const processors = new Processors(this);
 
-		let colorCssPath = '';
-
-		const adapter = this.app.vault.adapter;
-		if (adapter instanceof FileSystemAdapter) {
-			colorCssPath = `${adapter.getBasePath()}/${
-				this.app.vault.configDir
-			}/plugins/${this.manifest.id}/styles.css`;
-		} else {
-			throw TypeError('this.app.vault.adapter is not a FileSystemAdapter');
-		}
-
-		await genCSS(colorCssPath, this.settings);
+		await genCSS(this);
 
 		this.app.workspace.onLayoutReady(() => {
 			for (const type of renderTypes) {
@@ -44,7 +33,7 @@ export default class GraphvizPlugin extends Plugin {
 	}
 
 	async loadSettings(): Promise<PluginSettings> {
-		return { ...(await this.loadData()), ...DEFAULT_SETTINGS };
+		return { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
 	}
 
 	saveSettings(): Promise<void> {

@@ -8,7 +8,7 @@
     "build": "npm run lint && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
     "colorgen": "ts-node ./palettegen.ts",
     "version": "node version-bump.mjs && git add manifest.json versions.json",
-    "lint": "eslint . --ext .ts --ext .json --fix"
+    "lint": "biome lint . --apply"
   },
   "keywords": [],
   "author": "",
@@ -17,12 +17,9 @@
     "@types/jsdom": "^21.1.6",
     "@types/node": "^20.12.7",
     "@types/tmp": "^0.2.6",
-    "@typescript-eslint/eslint-plugin": "^7.6.0",
-    "@typescript-eslint/parser": "^7.6.0",
+    "builtin-modules": "^3.3.0",
     "esbuild": "^0.20.2",
-    "eslint-plugin-json": "3.1.0",
-    "tslib": "2.6.2",
-    "builtin-modules": "^3.3.0"
+    "tslib": "2.6.2"
   },
   "dependencies": {
     "jsdom": "^24.0.0",

@@ -305,7 +305,7 @@ function parseColor(tagColor: string): string {
     return tagColor;
 }
 
-export function getTempDir(type: RenderType): string {
+function getTempDir(type: RenderType): string {
     return path.join(os.tmpdir(), `obsidian-${type}`);
 }
 

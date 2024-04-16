@@ -1,13 +1,16 @@
 import { type RgbColor, hexToRgb, invertColorName } from 'src/utils.js';
-// biome-ignore lint/style/useNodejsImportProtocol:
 import { promises as fsp } from 'fs';
-// biome-ignore lint/style/useNodejsImportProtocol:
 import * as fs from 'fs';
-import type { ColorPalette, PluginSettings } from './setting';
+import type { ColorPalette } from './setting';
+import type GraphvizPlugin from './main';
+import { FileSystemAdapter } from 'obsidian';
 
 type ColorType = 'dark' | '' | 'light';
 type ColorName = 'red' | 'green' | 'yellow' | 'blue' | 'purple' | 'cyan' | 'orange'
+type ShadeName = 'light100-hard' | 'light100' | 'light100-soft' | 'light90' | 'light80' | 'light70' | 'light60' |
+    'dark60' | 'dark70' | 'dark80' | 'dark90' | 'dark100-soft' | 'dark100' | 'dark100-hard'
 
+// TODO: Expand support to extended color theme definitions (default color and faded color for that theme, same for shades)
 //@ts-format-ignore-region
 const colors: Map<ColorPalette, Map<ColorName, Map<ColorType, string>>> = new Map([
     ['gruvbox', 
@@ -34,17 +37,30 @@ const colors: Map<ColorPalette, Map<ColorName, Map<ColorType, string>>> = new Ma
     ]
 ]); 
 
-
-
-const shades: Map<string, string> = new Map([
-    ['light100-hard', '#eff1f5'], ['light100',      '#e6e9ef'],
-    ['light100-soft', '#dce0e8'], ['light90',       '#ccd0da'],
-    ['light80',       '#bcc0cc'], ['light70',       '#acb0be'],
-    ['light60',       '#9399b2'], ['dark60',        '#737994'],
-    ['dark70',        '#626880'], ['dark80',        '#51576d'],
-    ['dark90',        '#414559'], ['dark100-soft',  '#303446'],
-    ['dark100',       '#292c3c'], ['dark100-hard',  '#232634']
-]);
+const shades: Map<ColorPalette, Map<ShadeName, string>> = new Map([
+    ['catppuccin', 
+            new Map([
+            ['light100-hard', '#eff1f5'], ['light100',      '#e6e9ef'],
+            ['light100-soft', '#dce0e8'], ['light90',       '#ccd0da'],
+            ['light80',       '#bcc0cc'], ['light70',       '#acb0be'],
+            ['light60',       '#9399b2'], ['dark60',        '#737994'],
+            ['dark70',        '#626880'], ['dark80',        '#51576d'],
+            ['dark90',        '#414559'], ['dark100-soft',  '#303446'],
+            ['dark100',       '#292c3c'], ['dark100-hard',  '#232634']
+        ]) 
+    ],
+    ['gruvbox', 
+        new Map([
+            ['light100-hard', '#f9f5d7'], ['light100',      '#fbf1c7'],
+            ['light100-soft', '#f2e5bc'], ['light90',       '#ebdbb2'],
+            ['light80',       '#d5c4a1'], ['light70',       '#bdae93'],
+            ['light60',       '#a89984'], ['dark60',        '#7c6f64'],
+            ['dark70',        '#665c54'], ['dark80',        '#504945'],
+            ['dark90',        '#3c3836'], ['dark100-soft',  '#32302f'],
+            ['dark100',       '#282828'], ['dark100-hard',  '#1d2021']
+        ])
+    ]
+]); 
 //@ts-format-ignore-endregion
 
 const shadeGray = '#7f849c';
@@ -96,13 +112,30 @@ function getColorMapping(target: string, declaration: string): string {
     return mapping;
 }
 
-export async function genCSS(cssPath: string, settings: PluginSettings): Promise<void> {
+// TODO: Add ascidoc/mjx coloring documentation to readme
 
-    if (fs.existsSync(cssPath)) {
+export async function genCSS(plugin: GraphvizPlugin, force = false): Promise<void> {
+
+    let cssPath = '';
+    const settings = plugin.settings;
+
+    const adapter = plugin.app.vault.adapter;
+    if (adapter instanceof FileSystemAdapter) {
+        cssPath = `${adapter.getBasePath()}/${
+            plugin.app.vault.configDir
+        }/plugins/${plugin.manifest.id}/styles.css`;
+    } else {
+        throw TypeError('plugin.app.vault.adapter is not a FileSystemAdapter');
+    }
+
+    if (!force && fs.existsSync(cssPath)) {
         return;
     }
 
+    console.log(`Generating CSS for color palette: ${settings.colorPalette}`)
+
     const palette = colors.get(settings.colorPalette) || colors.values().next().value;
+    const shadePalette = shades.get(settings.colorPalette) || colors.values().next().value;
 
     let globalDeclaration = ':root {\n';
     let asciidocStyles = '';
@@ -153,7 +186,7 @@ mjx-mstyle[style*="color: ${name};"] {
         globalDeclaration += '\n';
     }
 
-    for (const [name, color] of shades) {
+    for (const [name, color] of shadePalette) {
         const rgbColor = hexToRgb(color);
 
         const fullName = `--theme-${name}`;

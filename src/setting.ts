@@ -1,7 +1,9 @@
 import { PluginSettingTab, Setting } from 'obsidian';
 import type GraphvizPlugin from './main';
+import { RestartModal } from './restartModal';
+import { genCSS } from './palettegen';
 
-const COLOR_PALETTES = <const>['gruvbox', 'catppuccin'];
+const COLOR_PALETTES = ['gruvbox', 'catppuccin'] as const;
 export type ColorPalette = (typeof COLOR_PALETTES)[number];
 
 export type PluginSettings = {
@@ -48,11 +50,17 @@ export class PluginSettingsTab extends PluginSettingTab {
 			for (const palette of COLOR_PALETTES) {
 				drop.addOption(palette, palette.replace('_', ' '));
 			}
-			drop
-				.setValue(this.plugin.settings.colorPalette)
+			drop.setValue(this.plugin.settings.colorPalette)
 				.onChange(async (value) => {
-					this.plugin.settings.colorPalette = value as ColorPalette;
-					await this.plugin.saveSettings();
+					new RestartModal(this.app, (res) => {
+						if (res) {
+							this.plugin.settings.colorPalette = value as ColorPalette;
+							this.plugin.saveSettings()
+							genCSS(this.plugin, true)
+						} else {
+							drop.setValue(this.plugin.settings.colorPalette)
+						}
+					}).open();
 				});
 		});
 
@@ -68,7 +76,7 @@ export class PluginSettingsTab extends PluginSettingTab {
 						.setPlaceholder(DEFAULT_SETTINGS[setting])
 						.setValue(this.plugin.settings[setting])
 						.onChange(async (value) => {
-							// eslint-disable-next-line @typescript-eslint/no-explicit-any
+							// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 							this.plugin.settings[setting] = value as any;
 							await this.plugin.saveSettings();
 						}),
