@@ -1,4 +1,4 @@
-<h1 id="title">Obsidian universal renderer</h1>
+<h1 id="title">Universal renderer</h1>
 
 <img src="https://github.com/dgudim/obsidian-universal-renderer/blob/master/assets/icon.png" height=150 id="icon"></img>
 <img src="https://github.com/dgudim/obsidian-universal-renderer/blob/master/assets/thumb.png" height=0 id="thumb"></img>
@@ -30,6 +30,10 @@ Render various diagrams and generate dynamic svgs in [Obsidian](https://obsidian
 | dynamic-svg | [dynamic svg](#dynamic-svg) | dynamic-svg |
 
 ## Installation
+
+### From the community store
+
+Just search for 'Universal renderer' in the obsidian community plugins
 
 ### From the releases
 
