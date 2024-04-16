@@ -1,30 +1,53 @@
 import { type RgbColor, hexToRgb, invertColorName } from 'src/utils.js';
+// biome-ignore lint/style/useNodejsImportProtocol:
+import { promises as fsp } from 'fs';
+// biome-ignore lint/style/useNodejsImportProtocol:
+import * as fs from 'fs';
+import type { ColorPalette, PluginSettings } from './setting';
 
 type ColorType = 'dark' | '' | 'light';
+type ColorName = 'red' | 'green' | 'yellow' | 'blue' | 'purple' | 'cyan' | 'orange'
 
 //@ts-format-ignore-region
-const colors: Map<string, Map<ColorType, string>> = new Map([
-    ['red',    new Map([['', '#cc241d'], ['light', '#fb4934'], ['dark', '#9d0006']])],
-    ['green',  new Map([['', '#98971a'], ['light', '#b8bb26'], ['dark', '#79740e']])],
-    ['yellow', new Map([['', '#d79921'], ['light', '#fabd2f'], ['dark', '#b57614']])],
-    ['blue',   new Map([['', '#458588'], ['light', '#83a598'], ['dark', '#076678']])],
-    ['purple', new Map([['', '#b16286'], ['light', '#d3869b'], ['dark', '#8f3f71']])],
-    ['cyan',   new Map([['', '#689d6a'], ['light', '#8ec07c'], ['dark', '#427b58']])],
-    ['orange', new Map([['', '#d65d0e'], ['light', '#fe8019'], ['dark', '#af3a03']])]
-]);
+const colors: Map<ColorPalette, Map<ColorName, Map<ColorType, string>>> = new Map([
+    ['gruvbox', 
+        new Map([
+            ['red',    new Map([['', '#cc241d'], ['light', '#fb4934'], ['dark', '#9d0006']])],
+            ['green',  new Map([['', '#98971a'], ['light', '#b8bb26'], ['dark', '#79740e']])],
+            ['yellow', new Map([['', '#d79921'], ['light', '#fabd2f'], ['dark', '#b57614']])],
+            ['blue',   new Map([['', '#458588'], ['light', '#83a598'], ['dark', '#076678']])],
+            ['purple', new Map([['', '#b16286'], ['light', '#d3869b'], ['dark', '#8f3f71']])],
+            ['cyan',   new Map([['', '#689d6a'], ['light', '#8ec07c'], ['dark', '#427b58']])],
+            ['orange', new Map([['', '#d65d0e'], ['light', '#fe8019'], ['dark', '#af3a03']])]
+        ])  
+    ],
+    ['catppuccin',
+        new Map([
+            ['red',    new Map([['', '#e78284'], ['light', '#f38ba8'], ['dark', '#d20f39']])],
+            ['green',  new Map([['', '#a6d189'], ['light', '#a6e3a1'], ['dark', '#40a02b']])],
+            ['yellow', new Map([['', '#e5c890'], ['light', '#f9e2af'], ['dark', '#df8e1d']])],
+            ['blue',   new Map([['', '#8caaee'], ['light', '#89b4fa'], ['dark', '#1e66f5']])],
+            ['purple', new Map([['', '#ca9ee6'], ['light', '#cba6f7'], ['dark', '#8839ef']])],
+            ['cyan',   new Map([['', '#85c1dc'], ['light', '#74c7ec'], ['dark', '#209fb5']])],
+            ['orange', new Map([['', '#ef9f76'], ['light', '#fab387'], ['dark', '#af3a03']])]
+        ])  
+    ]
+]); 
+
+
 
 const shades: Map<string, string> = new Map([
-    ['light100-hard', '#f9f5d7'], ['light100',      '#fbf1c7'],
-    ['light100-soft', '#f2e5bc'], ['light90',       '#ebdbb2'],
-    ['light80',       '#d5c4a1'], ['light70',       '#bdae93'],
-    ['light60',       '#a89984'], ['dark60',        '#7c6f64'],
-    ['dark70',        '#665c54'], ['dark80',        '#504945'],
-    ['dark90',        '#3c3836'], ['dark100-soft',  '#32302f'],
-    ['dark100',       '#282828'], ['dark100-hard',  '#1d2021']
+    ['light100-hard', '#eff1f5'], ['light100',      '#e6e9ef'],
+    ['light100-soft', '#dce0e8'], ['light90',       '#ccd0da'],
+    ['light80',       '#bcc0cc'], ['light70',       '#acb0be'],
+    ['light60',       '#9399b2'], ['dark60',        '#737994'],
+    ['dark70',        '#626880'], ['dark80',        '#51576d'],
+    ['dark90',        '#414559'], ['dark100-soft',  '#303446'],
+    ['dark100',       '#292c3c'], ['dark100-hard',  '#232634']
 ]);
 //@ts-format-ignore-endregion
 
-const shadeGray = '#928374';
+const shadeGray = '#7f849c';
 
 const baseCss = `/* proper sizing */
 
@@ -73,7 +96,13 @@ function getColorMapping(target: string, declaration: string): string {
     return mapping;
 }
 
-export function genCSS(): string {
+export async function genCSS(cssPath: string, settings: PluginSettings): Promise<void> {
+
+    if (fs.existsSync(cssPath)) {
+        return;
+    }
+
+    const palette = colors.get(settings.colorPalette) || colors.values().next().value;
 
     let globalDeclaration = ':root {\n';
     let asciidocStyles = '';
@@ -88,7 +117,7 @@ export function genCSS(): string {
     let combinedDeclaration = '.theme-dark, .theme-light {\n';
     combinedDeclaration += getColorDeclaration('--g-gray', shadeGray, hexToRgb(shadeGray));
 
-    for (const [name, unionColor] of colors) {
+    for (const [name, unionColor] of palette) {
         for (const [type, color] of unionColor) {
             const rgbColor = hexToRgb(color);
 
@@ -135,13 +164,13 @@ mjx-mstyle[style*="color: ${name};"] {
         lightThemeMappings += getColorMapping(fullName_g, invertColorName(fullName));
     }
 
-    return `${baseCss}
+    return fsp.writeFile(cssPath, `${baseCss}
 \n\n${globalDeclaration}\n}
 \n\n${combinedDeclaration}\n}
 \n\n${lightThemeMappings}\n}
 \n\n${darkThemeColorMappings}\n}
 \n\n${darkThemeShadeMappings}\n}
 \n\n${asciidocStyles}
-\n\n${mathStyles}`;
+\n\n${mathStyles}`);
 }
 

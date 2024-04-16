@@ -5,7 +5,6 @@ import {
 	PluginSettingsTab,
 } from './setting';
 import { Processors, renderTypes } from './processors';
-import * as fs from 'fs';
 import { genCSS } from './palettegen';
 
 export default class GraphvizPlugin extends Plugin {
@@ -13,7 +12,7 @@ export default class GraphvizPlugin extends Plugin {
 
 	async onload() {
 		console.debug('Load universal renderer plugin');
-		await this.loadSettings();
+		this.settings = await this.loadSettings();
 		this.addSettingTab(new PluginSettingsTab(this));
 		const processors = new Processors(this);
 
@@ -28,9 +27,7 @@ export default class GraphvizPlugin extends Plugin {
 			throw TypeError('this.app.vault.adapter is not a FileSystemAdapter');
 		}
 
-		if (!fs.existsSync(colorCssPath)) {
-			fs.writeFileSync(colorCssPath, genCSS());
-		}
+		await genCSS(colorCssPath, this.settings);
 
 		this.app.workspace.onLayoutReady(() => {
 			for (const type of renderTypes) {
@@ -46,12 +43,11 @@ export default class GraphvizPlugin extends Plugin {
 		console.debug('Unload universal renderer plugin');
 	}
 
-	async loadSettings(): Promise<void> {
-		this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
-		return Promise.resolve();
+	async loadSettings(): Promise<PluginSettings> {
+		return { ...(await this.loadData()), ...DEFAULT_SETTINGS };
 	}
 
-	async saveSettings() {
-		await this.saveData(this.settings);
+	saveSettings(): Promise<void> {
+		return this.saveData(this.settings);
 	}
 }
