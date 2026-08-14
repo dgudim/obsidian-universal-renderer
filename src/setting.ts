@@ -44,8 +44,6 @@ export class PluginSettingsTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		let setting: keyof typeof DEFAULT_SETTINGS; // extract all keys
-
 		new Setting(containerEl).setName('Color palette').addDropdown((drop) => {
 			for (const palette of COLOR_PALETTES) {
 				drop.addOption(palette, palette.replace('_', ' '));
@@ -64,7 +62,7 @@ export class PluginSettingsTab extends PluginSettingTab {
 				});
 		});
 
-		for (setting in DEFAULT_SETTINGS) {
+		for (const setting of Object.keys(DEFAULT_SETTINGS) as (keyof PluginSettings)[]) {
 			if (setting === 'colorPalette') {
 				continue;
 			}
