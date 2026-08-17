@@ -3,7 +3,7 @@ import { promises as fsp } from 'fs';
 import * as fs from 'fs';
 import type { ColorPalette } from './setting';
 import type GraphvizPlugin from './main';
-import { FileSystemAdapter } from 'obsidian';
+import type { FileSystemAdapter } from 'obsidian';
 
 type ColorType = 'dark' | '' | 'light';
 type ColorName = 'red' | 'green' | 'yellow' | 'blue' | 'purple' | 'cyan' | 'orange'
@@ -195,7 +195,20 @@ const shades: Map<ColorPalette, Map<ShadeName, string>> = new Map([
 ]); 
 //@ts-format-ignore-endregion
 
-const shadeGray = '#7f849c';
+// Per-palette neutral gray for `--g-gray`
+const shadeGrays: Map<ColorPalette, string> = new Map([
+    ['gruvbox',     '#928374'],
+    ['catppuccin',  '#7f849c'],
+    ['dracula',     '#6272a4'],
+    ['nord',        '#616e88'],
+    ['tokyo_night', '#565f89'],
+    ['one_dark',    '#5c6370'],
+    ['solarized',   '#839496'],
+    ['everforest',  '#859289'],
+]);
+
+// Palette names usable by buildPaletteCss / the colorgen CLI.
+export const availablePalettes: ColorPalette[] = [...colors.keys()];
 
 const baseCss = `/* proper sizing */
 
@@ -251,8 +264,8 @@ export async function genCSS(plugin: GraphvizPlugin, force = false): Promise<voi
     let cssPath = '';
     const settings = plugin.settings;
 
-    const adapter = plugin.app.vault.adapter;
-    if (adapter instanceof FileSystemAdapter) {
+    const adapter = plugin.app.vault.adapter as FileSystemAdapter;
+    if (typeof adapter.getBasePath === 'function') {
         cssPath = `${adapter.getBasePath()}/${
             plugin.app.vault.configDir
         }/plugins/${plugin.manifest.id}/styles.css`;
@@ -266,8 +279,14 @@ export async function genCSS(plugin: GraphvizPlugin, force = false): Promise<voi
 
     console.log(`Generating CSS for color palette: ${settings.colorPalette}`)
 
-    const palette = colors.get(settings.colorPalette) ?? colors.values().next().value!;
-    const shadePalette = shades.get(settings.colorPalette) ?? shades.values().next().value!;
+    return fsp.writeFile(cssPath, buildPaletteCss(settings.colorPalette));
+}
+
+export function buildPaletteCss(paletteName: ColorPalette): string {
+
+    const palette = colors.get(paletteName) ?? colors.values().next().value!;
+    const shadePalette = shades.get(paletteName) ?? shades.values().next().value!;
+    const gray = shadeGrays.get(paletteName) ?? shadeGrays.values().next().value!;
 
     let globalDeclaration = ':root {\n';
     let asciidocStyles = '';
@@ -280,7 +299,7 @@ export async function genCSS(plugin: GraphvizPlugin, force = false): Promise<voi
     let mathStyles = 'mjx-mstyle { --stroke: 0.3px }\n';
 
     let combinedDeclaration = '.theme-dark, .theme-light {\n';
-    combinedDeclaration += getColorDeclaration('--g-gray', shadeGray, hexToRgb(shadeGray));
+    combinedDeclaration += getColorDeclaration('--g-gray', gray, hexToRgb(gray));
 
     for (const [name, unionColor] of palette) {
         for (const [type, color] of unionColor) {
@@ -329,13 +348,13 @@ mjx-mstyle[style*="color: ${name};"] {
         lightThemeMappings += getColorMapping(fullName_g, invertColorName(fullName));
     }
 
-    return fsp.writeFile(cssPath, `${baseCss}
+    return `${baseCss}
 \n\n${globalDeclaration}\n}
 \n\n${combinedDeclaration}\n}
 \n\n${lightThemeMappings}\n}
 \n\n${darkThemeColorMappings}\n}
 \n\n${darkThemeShadeMappings}\n}
 \n\n${asciidocStyles}
-\n\n${mathStyles}`);
+\n\n${mathStyles}`;
 }
 

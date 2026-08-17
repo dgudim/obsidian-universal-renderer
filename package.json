@@ -1,14 +1,15 @@
 {
   "name": "obsidian-graphviz",
-  "version": "1.0.5",
+  "version": "1.1.0",
   "description": "Graphviz rendering for obsidian md",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "npm run lint && tsc && node esbuild.config.mjs production",
-    "colorgen": "ts-node ./palettegen.ts",
+    "colorgen": "bun run colorgen.ts",
     "version": "node version-bump.mjs && git add manifest.json versions.json",
-    "lint": "biome lint . --apply"
+    "lint": "biome lint . --apply",
+    "release": "node release.mjs"
   },
   "keywords": [],
   "author": "",
