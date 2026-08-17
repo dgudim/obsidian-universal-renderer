@@ -26,6 +26,13 @@ export type PluginSettings = {
 	asciidocPath: string;
 	plantumlPath: string;
 	typstPath: string;
+	d2Path: string;
+	seqdiagPath: string;
+	actdiagPath: string;
+	nwdiagPath: string;
+	wavedromPath: string;
+	bytefieldPath: string;
+	vegaLitePath: string;
 };
 
 export const DEFAULT_SETTINGS: PluginSettings = {
@@ -39,6 +46,13 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 	asciidocPath: 'asciidoctor',
 	plantumlPath: 'plantuml',
 	typstPath: 'typst',
+	d2Path: 'd2',
+	seqdiagPath: 'seqdiag',
+	actdiagPath: 'actdiag',
+	nwdiagPath: 'nwdiag',
+	wavedromPath: 'wavedrom-cli',
+	bytefieldPath: 'bytefield-svg',
+	vegaLitePath: 'vl2svg',
 };
 
 export class PluginSettingsTab extends PluginSettingTab {

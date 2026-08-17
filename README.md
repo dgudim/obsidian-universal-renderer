@@ -21,6 +21,13 @@ Render various diagrams and generate dynamic svgs in [Obsidian](https://obsidian
 | asciidoc | [asciidoc.org](http://asciidoc.org) | asciidoc |
 | plantuml | [plantuml.com](http://plantuml.com/) | plantuml |
 | typst | [typst.app](https://typst.app/) | typst |
+| d2 | [d2lang.com](https://d2lang.com/) | d2 |
+| seqdiag | [blockdiag.com](http://blockdiag.com/en/seqdiag/) | seqdiag |
+| actdiag | [blockdiag.com](http://blockdiag.com/en/actdiag/) | actdiag |
+| nwdiag | [blockdiag.com](http://blockdiag.com/en/nwdiag/) | nwdiag |
+| wavedrom | [wavedrom.com](https://wavedrom.com/) | wavedrom |
+| bytefield | [bytefield-svg](https://github.com/Deep-Symmetry/bytefield-svg) | bytefield |
+| vega-lite | [vega.github.io](https://vega.github.io/vega-lite/) | vega-lite |
 
 ### Special diagrams
 
@@ -45,7 +52,7 @@ Just search for 'Universal renderer' in the obsidian community plugins
 - `npm i` or `yarn` to install dependencies
 - `npm run build`
 - Copy over `main.js`, `styles.css`, `manifest.json` to your vault `<VaultFolder>/.obsidian/plugins/universal-renderer/`.
-- Install `graphviz, latex, asciidoc` and other packages via your system package manager (you can customize executable file locations in plugin settings)
+- Install `graphviz, latex, asciidoc, plantuml, typst, etc...` via your system package manager (you can customize executable file locations in plugin settings)
 
 ### Via BRAT
 
@@ -110,6 +117,11 @@ There are also presets which are applied by default
 | - | - |
 | default-latex | Applied to all `latex` graphs, adds some boilerplate start and end code |
 | default-plantuml | Applied to all `plantuml` graphs, adds `@startuml` and `@enduml` to the start and end of the code respectively | 
+| default-typst | Applied to all `typst` graphs, inverts shades for dark mode |
+| default-d2 | Applied to all `d2` graphs, inverts shades for dark mode and sets width to `100%` |
+| default-vega-lite | Applied to all `vega-lite` graphs, inverts shades for dark mode and sets width to `100%` |
+| default-wavedrom | Applied to all `wavedrom` graphs, inverts shades for dark mode |
+| default-bytefield | Applied to all `bytefield` graphs, inverts shades for dark mode |
 
 ### Defining a preset 
 

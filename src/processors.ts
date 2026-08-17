@@ -16,7 +16,9 @@ export const renderTypes = [
     'dot', 'latex',
     'ditaa', 'blockdiag', 'asciidoc',
     'refgraph', 'dynamic-svg',
-    'plantuml', 'typst'] as const;
+    'plantuml', 'typst',
+    'd2', 'seqdiag', 'actdiag', 'nwdiag',
+    'wavedrom', 'bytefield', 'vega-lite'] as const;
 type RenderType = typeof renderTypes[number];
 
 const svgStyleTags = ['fill', 'stroke'] as const;
@@ -201,6 +203,20 @@ const presets = new Map<string, Map<string, string>>([
         ['doc-end', '@enduml']
     ])],
     ['default-typst', new Map<string, string>([
+        ['invert-shade', '1']
+    ])],
+    ['default-d2', new Map<string, string>([
+        ['invert-shade', '1'],
+        ['width', '100%']
+    ])],
+    ['default-vega-lite', new Map<string, string>([
+        ['invert-shade', '1'],
+        ['width', '100%']
+    ])],
+    ['default-wavedrom', new Map<string, string>([
+        ['invert-shade', '1']
+    ])],
+    ['default-bytefield', new Map<string, string>([
         ['invert-shade', '1']
     ])],
 ]);
@@ -402,6 +418,76 @@ export class Processors {
                         }, {
                             path: this.pluginSettings.pdf2svgPath,
                             options: [`${inputFile}-crop.pdf`, outputFile]
+                        }
+                    ],
+                    skipDynamicSvg: false,
+                };
+            case 'd2':
+                return {
+                    execParams: [
+                        {
+                            path: this.pluginSettings.d2Path,
+                            options: ['--dark-theme', '-1', inputFile, outputFile]
+                        }
+                    ],
+                    skipDynamicSvg: false,
+                };
+            case 'seqdiag':
+                return {
+                    execParams: [
+                        {
+                            path: this.pluginSettings.seqdiagPath,
+                            options: ['--antialias', '-Tsvg', inputFile, '-o', outputFile]
+                        }
+                    ],
+                    skipDynamicSvg: false,
+                };
+            case 'actdiag':
+                return {
+                    execParams: [
+                        {
+                            path: this.pluginSettings.actdiagPath,
+                            options: ['--antialias', '-Tsvg', inputFile, '-o', outputFile]
+                        }
+                    ],
+                    skipDynamicSvg: false,
+                };
+            case 'nwdiag':
+                return {
+                    execParams: [
+                        {
+                            path: this.pluginSettings.nwdiagPath,
+                            options: ['--antialias', '-Tsvg', inputFile, '-o', outputFile]
+                        }
+                    ],
+                    skipDynamicSvg: false,
+                };
+            case 'wavedrom':
+                return {
+                    execParams: [
+                        {
+                            path: this.pluginSettings.wavedromPath,
+                            options: ['-i', inputFile, '-s', outputFile]
+                        }
+                    ],
+                    skipDynamicSvg: false,
+                };
+            case 'bytefield':
+                return {
+                    execParams: [
+                        {
+                            path: this.pluginSettings.bytefieldPath,
+                            options: ['-i', inputFile, '-o', outputFile]
+                        }
+                    ],
+                    skipDynamicSvg: false,
+                };
+            case 'vega-lite':
+                return {
+                    execParams: [
+                        {
+                            path: this.pluginSettings.vegaLitePath,
+                            options: [inputFile, outputFile]
                         }
                     ],
                     skipDynamicSvg: false,
