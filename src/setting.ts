@@ -3,7 +3,16 @@ import type GraphvizPlugin from './main';
 import { RestartModal } from './restartModal';
 import { genCSS } from './palettegen';
 
-const COLOR_PALETTES = ['gruvbox', 'catppuccin'] as const;
+const COLOR_PALETTES = [
+	'gruvbox',
+	'catppuccin',
+	'dracula',
+	'nord',
+	'tokyo_night',
+	'one_dark',
+	'solarized',
+	'everforest',
+] as const;
 export type ColorPalette = (typeof COLOR_PALETTES)[number];
 
 export type PluginSettings = {
