@@ -37,7 +37,7 @@ if (!tryRun('gh', ['--version'])) {
 // Refuse to release a dirty tree so the built artifacts match a committed state.
 const dirty = execFileSync('git', ['status', '--porcelain']).toString().trim();
 if (dirty) {
-	console.error('Working tree is not clean. Commit or stash your changes before releasing:\n' + dirty);
+	console.error(`Working tree is not clean. Commit or stash your changes before releasing:\n${dirty}`);
 	process.exit(1);
 }
 

@@ -9,7 +9,7 @@ export function readFileString(path: string): string {
 export function rgb100ToHex(colors: string[]): string {
 	let hexString = '#';
 	for (const color of colors) {
-		const component = Math.floor((Number.parseInt(color) / 100.0) * 255).toString(16);
+		const component = Math.floor((Number.parseInt(color, 10) / 100.0) * 255).toString(16);
 		hexString += component.length === 1 ? `0${component}` : component;
 	}
 	return hexString;

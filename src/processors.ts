@@ -262,7 +262,7 @@ function mapColor(sourceColor: string): {
     let shadeVar = shadeToVar.get(sourceColor);
 
     let delta = 0;
-    let deltaColor = undefined;
+    let deltaColor: RgbColor | undefined;
 
     const sourceRgbColor = hexToRgb(sourceColor);
 

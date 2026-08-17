@@ -8,7 +8,7 @@
     "build": "npm run lint && tsc && node esbuild.config.mjs production",
     "colorgen": "bun run colorgen.ts",
     "version": "node version-bump.mjs && git add manifest.json versions.json",
-    "lint": "biome lint . --apply",
+    "lint": "biome lint --write .",
     "release": "node release.mjs"
   },
   "keywords": [],

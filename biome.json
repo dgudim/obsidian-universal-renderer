@@ -1,25 +1,27 @@
 {
+    "$schema": "https://biomejs.dev/schemas/2.5.8/schema.json",
+    "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+    "files": { "includes": ["**", "!styles.css"] },
     "formatter": {
         "enabled": true,
         "indentStyle": "space",
         "indentWidth": 4,
         "lineWidth": 120
     },
-    "organizeImports": { "enabled": true },
+    "assist": { "actions": { "source": { "organizeImports": "on" } } },
     "linter": {
         "enabled": true,
         "rules": {
-            "recommended": true,
+            "preset": "recommended",
             "complexity": {
                 "noBannedTypes": "error",
                 "noExtraBooleanCast": "error",
-                "noMultipleSpacesInRegularExpressionLiterals": "error",
                 "noUselessCatch": "error",
                 "noUselessThisAlias": "warn",
                 "noUselessTypeConstraint": "error",
-                "noWith": "error",
                 "noUselessConstructor": "warn",
-                "noUselessSwitchCase": "warn"
+                "noUselessSwitchCase": "warn",
+                "noAdjacentSpacesInRegex": "error"
             },
             "correctness": {
                 "noConstAssign": "error",
@@ -29,7 +31,6 @@
                 "noGlobalObjectCalls": "error",
                 "noInnerDeclarations": "error",
                 "noInvalidConstructorSuper": "error",
-                "noNewSymbol": "error",
                 "noNonoctalDecimalEscape": "error",
                 "noPrecisionLoss": "error",
                 "noSelfAssign": "error",
@@ -44,7 +45,9 @@
                 "noUnusedVariables": "error",
                 "useIsNan": "error",
                 "useValidForDirection": "error",
-                "useYield": "error"
+                "useYield": "error",
+                "noInvalidBuiltinInstantiation": "error",
+                "useValidTypeof": "error"
             },
             "style": {
                 "noNamespace": "error",
@@ -79,7 +82,7 @@
                 "noUnsafeDeclarationMerging": "error",
                 "noUnsafeNegation": "error",
                 "useGetterReturn": "error",
-                "useValidTypeof": "error"
+                "noWith": "error"
             }
         }
     }
