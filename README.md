@@ -88,6 +88,8 @@ Various parameters can be specified before the diagram code similar to *obsidian
 | preset | A set of parameters to apply to the graph (See [presets](#presets)) |
 | invert-shade <br> invert-color | Inverts shades or colors of the graph |
 | \<svg tag\>-**fill**/**stroke**:keep-**shade**/**color**/**all** | Freezes *color* or *shade* inversion in light/dark theme for a specific svg tag (e.g. circle, text, line) |
+| mix-multiplier | How strongly to blend the original diagram color with the matched theme color, from `0` (pure theme color, default) to `1` (see [color mixing](#color-mixing)) |
+| mix-mode | How the blend is computed, either `delta` (default) or `mix` (see [color mixing](#color-mixing)) |
 
 ### Example
 
@@ -97,6 +99,22 @@ Various parameters can be specified before the diagram code similar to *obsidian
 invert-shade:1
 width:90%
 text-fill:keep-shade
+---
+<diagram code>
+```
+````
+
+### Color mixing
+
+When a diagram uses a color that isn't part of your theme, the renderer finds the closest theme color and replaces it. By default the original color is fully replaced, but you can use `mix-multiplier` to bring some of the original color back, and `mix-mode` controls *how* it is done.
+
+At `mix-multiplier = 0` both modes produce the pure theme color. `delta` preserves the theme while carrying over the source's *relative* tint, `mix` fades theme color to the source color.
+
+````sh
+```dot
+---
+mix-multiplier:0.5
+mix-mode:delta
 ---
 <diagram code>
 ```
