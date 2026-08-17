@@ -8,7 +8,7 @@ import { Processors, renderTypes } from './processors';
 import { genCSS } from './palettegen';
 
 export default class GraphvizPlugin extends Plugin {
-	settings: PluginSettings;
+	declare settings: PluginSettings;
 
 	async onload() {
 		console.debug('Load universal renderer plugin');

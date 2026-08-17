@@ -1,4 +1,4 @@
-import { type RgbColor, hexToRgb, invertColorName } from 'src/utils.js';
+import { type RgbColor, hexToRgb, invertColorName } from './utils.js';
 import { promises as fsp } from 'fs';
 import * as fs from 'fs';
 import type { ColorPalette } from './setting';
@@ -134,8 +134,8 @@ export async function genCSS(plugin: GraphvizPlugin, force = false): Promise<voi
 
     console.log(`Generating CSS for color palette: ${settings.colorPalette}`)
 
-    const palette = colors.get(settings.colorPalette) || colors.values().next().value;
-    const shadePalette = shades.get(settings.colorPalette) || colors.values().next().value;
+    const palette = colors.get(settings.colorPalette) ?? colors.values().next().value!;
+    const shadePalette = shades.get(settings.colorPalette) ?? shades.values().next().value!;
 
     let globalDeclaration = ':root {\n';
     let asciidocStyles = '';

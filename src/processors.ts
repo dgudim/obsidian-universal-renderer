@@ -721,7 +721,7 @@ export class Processors {
             console.error(`convert to image error: ${errMessage}`);
             const pre = document.createElement('pre');
             const code = document.createElement('code');
-            code.setText(errMessage);
+            code.setText(String(errMessage));
             pre.appendChild(code);
             el.appendChild(pre);
         }
