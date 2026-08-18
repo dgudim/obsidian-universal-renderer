@@ -14,6 +14,14 @@ function tryRun(cmd, args) {
 	}
 }
 
+function runScript(name) {
+	if (tryRun('bun', ['--version'])) {
+		run('bun', ['run', name]);
+		return;
+	}
+	run('npm', ['run', name]);
+}
+
 const manifest = JSON.parse(readFileSync('manifest.json', 'utf8'));
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 const version = manifest.version;
@@ -24,7 +32,7 @@ const tag = version;
 if (manifest.version !== pkg.version) {
 	console.error(
 		`Version mismatch: manifest.json is ${manifest.version} but package.json is ${pkg.version}. ` +
-			'Bump both (e.g. `npm version <patch|minor|major>`) before releasing.',
+			'Bump both (e.g. `bun run version` after setting package.json version) before releasing.',
 	);
 	process.exit(1);
 }
@@ -42,7 +50,7 @@ if (dirty) {
 }
 
 console.log(`Building plugin for release ${version}...`);
-run('npm', ['run', 'build']);
+runScript('build');
 
 const assets = ['main.js', 'manifest.json', 'styles.css'];
 for (const asset of assets) {
