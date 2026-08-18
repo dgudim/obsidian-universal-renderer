@@ -1,6 +1,5 @@
-import { PluginSettingTab, Setting } from 'obsidian';
+import { ConfirmationModal, PluginSettingTab, type SettingDefinitionItem } from 'obsidian';
 import type GraphvizPlugin from './main';
-import { RestartModal } from './restartModal';
 import { genCSS } from './palettegen';
 
 const COLOR_PALETTES = [
@@ -35,6 +34,27 @@ export type PluginSettings = {
 	vegaLitePath: string;
 };
 
+type ExecutableSetting = Exclude<keyof PluginSettings, 'colorPalette'>;
+
+const EXECUTABLES: { key: ExecutableSetting; name: string }[] = [
+	{ key: 'dotPath', name: 'Graphviz' },
+	{ key: 'pdflatexPath', name: 'pdfLaTeX' },
+	{ key: 'pdf2svgPath', name: 'pdf2svg' },
+	{ key: 'pdfCropPath', name: 'pdfcrop' },
+	{ key: 'blockdiagPath', name: 'Blockdiag' },
+	{ key: 'ditaaPath', name: 'Ditaa' },
+	{ key: 'asciidocPath', name: 'AsciiDoc' },
+	{ key: 'plantumlPath', name: 'PlantUML' },
+	{ key: 'typstPath', name: 'Typst' },
+	{ key: 'd2Path', name: 'D2' },
+	{ key: 'seqdiagPath', name: 'Seqdiag' },
+	{ key: 'actdiagPath', name: 'Actdiag' },
+	{ key: 'nwdiagPath', name: 'Nwdiag' },
+	{ key: 'wavedromPath', name: 'WaveDrom' },
+	{ key: 'bytefieldPath', name: 'Bytefield' },
+	{ key: 'vegaLitePath', name: 'Vega-Lite' },
+];
+
 export const DEFAULT_SETTINGS: PluginSettings = {
 	colorPalette: 'gruvbox',
 	dotPath: 'dot',
@@ -63,45 +83,52 @@ export class PluginSettingsTab extends PluginSettingTab {
 		this.plugin = plugin;
 	}
 
-	display(): void {
-		const { containerEl } = this;
-		containerEl.empty();
-
-		new Setting(containerEl).setName('Color palette').addDropdown((drop) => {
-			for (const palette of COLOR_PALETTES) {
-				drop.addOption(palette, palette.replace('_', ' '));
-			}
-			drop.setValue(this.plugin.settings.colorPalette)
-				.onChange(async (value) => {
-					new RestartModal(this.app, (res) => {
-						if (res) {
-							this.plugin.settings.colorPalette = value as ColorPalette;
-							this.plugin.saveSettings()
-							genCSS(this.plugin, true)
-						} else {
-							drop.setValue(this.plugin.settings.colorPalette)
+	getSettingDefinitions(): SettingDefinitionItem[] {
+		return [
+			{
+				name: 'Color palette',
+				desc: 'Requires an Obsidian restart to take effect.',
+				render: (setting) => {
+					setting.addDropdown((drop) => {
+						for (const palette of COLOR_PALETTES) {
+							drop.addOption(palette, palette.replaceAll('_', ' '));
 						}
-					}).open();
-				});
-		});
-
-		for (const setting of Object.keys(DEFAULT_SETTINGS) as (keyof PluginSettings)[]) {
-			if (setting === 'colorPalette') {
-				continue;
-			}
-			const name = setting.split(/(?=[A-Z])/).join(' ');
-			new Setting(containerEl)
-				.setName(name[0].toUpperCase() + name.slice(1))
-				.addText((text) =>
-					text
-						.setPlaceholder(DEFAULT_SETTINGS[setting])
-						.setValue(this.plugin.settings[setting])
-						.onChange(async (value) => {
-							// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-							this.plugin.settings[setting] = value as any;
-							await this.plugin.saveSettings();
-						}),
-				);
-		}
+						drop.setValue(this.plugin.settings.colorPalette).onChange((value) => {
+							new ConfirmationModal(this.app)
+								.setTitle('Please restart Obsidian')
+								.setContent('Changing the theme requires a restart.')
+								.addButton((btn) =>
+									btn
+										.setButtonText('Restart later')
+										.setCta()
+										.onClick(async () => {
+											this.plugin.settings.colorPalette = value as ColorPalette;
+											await this.plugin.saveSettings();
+											await genCSS(this.plugin, true);
+										}),
+								)
+								.addCancelButton('Cancel')
+								.setCloseCallback(() => {
+									drop.setValue(this.plugin.settings.colorPalette);
+								})
+								.open();
+						});
+					});
+				},
+			},
+			{
+				type: 'group',
+				heading: 'Executables',
+				items: EXECUTABLES.map(({ key, name }) => ({
+					name,
+					desc: `Path to the ${DEFAULT_SETTINGS[key]} executable.`,
+					control: {
+						type: 'text' as const,
+						key,
+						placeholder: DEFAULT_SETTINGS[key],
+					},
+				})),
+			},
+		];
 	}
 }
