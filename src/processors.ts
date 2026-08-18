@@ -12,12 +12,13 @@ import { type RgbColor, findClosestColorVar, getColorDelta, hexToRgb, invertColo
 const md5 = (contents: string) => crypto.createHash('md5').update(contents).digest('hex');
 
 export const renderTypes = [
-    'dot', 'latex',
+    'dot', 'latex', 'tikz',
     'ditaa', 'blockdiag', 'asciidoc',
     'refgraph', 'dynamic-svg',
     'plantuml', 'typst',
-    'd2', 'seqdiag', 'actdiag', 'nwdiag',
-    'wavedrom', 'bytefield', 'vega-lite'] as const;
+    'd2', 'seqdiag', 'actdiag', 'nwdiag', 'packetdiag', 'rackdiag',
+    'wavedrom', 'bytefield', 'vega-lite', 'vega',
+    'mermaid', 'nomnoml', 'svgbob', 'pikchr', 'gnuplot', 'mscgen', 'dbml'] as const;
 type RenderType = typeof renderTypes[number];
 
 const svgStyleTags = ['fill', 'stroke'] as const;
@@ -218,6 +219,34 @@ const presets = new Map<string, Map<string, string>>([
     ['default-bytefield', new Map<string, string>([
         ['invert-shade', '1']
     ])],
+    ['default-mermaid', new Map<string, string>([
+        ['invert-shade', '1'],
+        ['width', '100%']
+    ])],
+    ['default-nomnoml', new Map<string, string>([
+        ['invert-shade', '1']
+    ])],
+    ['default-svgbob', new Map<string, string>([
+        ['invert-shade', '1']
+    ])],
+    ['default-pikchr', new Map<string, string>([
+        ['invert-shade', '1']
+    ])],
+    ['default-gnuplot', new Map<string, string>([
+        ['invert-shade', '1'],
+        ['width', '100%']
+    ])],
+    ['default-mscgen', new Map<string, string>([
+        ['invert-shade', '1']
+    ])],
+    ['default-vega', new Map<string, string>([
+        ['invert-shade', '1'],
+        ['width', '100%']
+    ])],
+    ['default-dbml', new Map<string, string>([
+        ['invert-shade', '1'],
+        ['width', '100%']
+    ])],
 ]);
 
 function transformColorMap(colorList: (string | string[][])[][]): { colorToVar: SSMap, hexToVar: Map<RgbColor, string> } {
@@ -341,7 +370,10 @@ export class Processors {
         return this.plugin.settings;
     }
 
-    private getRendererParameters(type: RenderType, inputFile: string, outputFile: string): { execParams: { path: string, options: string[] }[], skipDynamicSvg: boolean } {
+    private getRendererParameters(type: RenderType, inputFile: string, outputFile: string): {
+        execParams: { path: string, options: string[], captureStdout?: string }[],
+        skipDynamicSvg: boolean
+    } {
         switch (type) {
             case 'dot':
                 return {
@@ -354,6 +386,7 @@ export class Processors {
                     skipDynamicSvg: false,
                 };
             case 'latex':
+            case 'tikz':
                 return {
                     execParams: [
                         {
@@ -465,6 +498,26 @@ export class Processors {
                     ],
                     skipDynamicSvg: false,
                 };
+            case 'packetdiag':
+                return {
+                    execParams: [
+                        {
+                            path: this.pluginSettings.packetdiagPath,
+                            options: ['--antialias', '-Tsvg', inputFile, '-o', outputFile]
+                        }
+                    ],
+                    skipDynamicSvg: false,
+                };
+            case 'rackdiag':
+                return {
+                    execParams: [
+                        {
+                            path: this.pluginSettings.rackdiagPath,
+                            options: ['--antialias', '-Tsvg', inputFile, '-o', outputFile]
+                        }
+                    ],
+                    skipDynamicSvg: false,
+                };
             case 'wavedrom':
                 return {
                     execParams: [
@@ -495,6 +548,87 @@ export class Processors {
                     ],
                     skipDynamicSvg: false,
                 };
+            case 'vega':
+                return {
+                    execParams: [
+                        {
+                            path: this.pluginSettings.vegaPath,
+                            options: [inputFile, outputFile]
+                        }
+                    ],
+                    skipDynamicSvg: false,
+                };
+            case 'mermaid':
+                return {
+                    execParams: [
+                        {
+                            path: this.pluginSettings.mermaidPath,
+                            options: ['-i', inputFile, '-o', outputFile]
+                        }
+                    ],
+                    skipDynamicSvg: false,
+                };
+            case 'nomnoml':
+                return {
+                    execParams: [
+                        {
+                            path: this.pluginSettings.nomnomlPath,
+                            options: ['-i', inputFile, '-f', 'svg', '-o', outputFile]
+                        }
+                    ],
+                    skipDynamicSvg: false,
+                };
+            case 'svgbob':
+                return {
+                    execParams: [
+                        {
+                            path: this.pluginSettings.svgbobPath,
+                            options: [inputFile, '-o', outputFile]
+                        }
+                    ],
+                    skipDynamicSvg: false,
+                };
+            case 'pikchr':
+                return {
+                    execParams: [
+                        {
+                            path: this.pluginSettings.pikchrPath,
+                            options: ['--svg-only', inputFile],
+                            captureStdout: outputFile,
+                        }
+                    ],
+                    skipDynamicSvg: false,
+                };
+            case 'gnuplot':
+                return {
+                    execParams: [
+                        {
+                            path: this.pluginSettings.gnuplotPath,
+                            options: ['-e', `set terminal svg; set output "${outputFile.replaceAll('\\', '/')}"`, inputFile]
+                        }
+                    ],
+                    skipDynamicSvg: false,
+                };
+            case 'mscgen':
+                return {
+                    execParams: [
+                        {
+                            path: this.pluginSettings.mscgenPath,
+                            options: ['-T', 'svg', '-i', inputFile, '-o', outputFile]
+                        }
+                    ],
+                    skipDynamicSvg: false,
+                };
+            case 'dbml':
+                return {
+                    execParams: [
+                        {
+                            path: this.pluginSettings.dbmlPath,
+                            options: ['-i', inputFile, '-o', outputFile]
+                        }
+                    ],
+                    skipDynamicSvg: false,
+                };
             default:
                 return {
                     execParams: [],
@@ -509,18 +643,27 @@ export class Processors {
         };
     }
 
-    private spawnProcess(cmdPath: string, parameters: string[]): Promise<string> {
+    private spawnProcess(cmdPath: string, parameters: string[], captureStdout?: string): Promise<string> {
         const command = `${cmdPath} ${parameters.join(' ')}`;
         return new Promise<string>((resolve, reject) => {
             const process = spawn(cmdPath, parameters);
             let errData = '';
-            process.stderr.on('data', (data) => { errData += data; });
+            const stdoutChunks: Buffer[] = [];
+            process.stderr.on('data', (data: Buffer | string) => { errData += String(data); });
+            if (captureStdout) {
+                process.stdout.on('data', (data: Buffer | string) => {
+                    stdoutChunks.push(Buffer.from(data));
+                });
+            }
             process.on('error', (err: Error) => reject(new Error(`"${command}" failed, ${err}`)));
             process.stdin.end();
 
             process.on('exit', (code) => {
                 if (code !== 0) {
                     return reject(new Error(`"${command}" failed, error code: ${code}, stderr: ${errData}`));
+                }
+                if (captureStdout) {
+                    fs.writeFileSync(captureStdout, Buffer.concat(stdoutChunks));
                 }
                 resolve('ok');
             });
@@ -532,7 +675,7 @@ export class Processors {
         const renderer = this.getRendererParameters(type, inputFile, outputFile);
 
         for (const process of renderer.execParams) {
-            await this.spawnProcess(process.path, process.options);
+            await this.spawnProcess(process.path, process.options, process.captureStdout);
         }
 
         const renderedContent = readFileString(outputFile);

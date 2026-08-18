@@ -25,9 +25,20 @@ Render various diagrams and generate dynamic svgs in [Obsidian](https://obsidian
 | seqdiag | [blockdiag.com](http://blockdiag.com/en/seqdiag/) | seqdiag |
 | actdiag | [blockdiag.com](http://blockdiag.com/en/actdiag/) | actdiag |
 | nwdiag | [blockdiag.com](http://blockdiag.com/en/nwdiag/) | nwdiag |
+| packetdiag | [blockdiag.com](http://blockdiag.com/en/packetdiag/) | packetdiag |
+| rackdiag | [blockdiag.com](http://blockdiag.com/en/rackdiag/) | rackdiag |
 | wavedrom | [wavedrom.com](https://wavedrom.com/) | wavedrom |
 | bytefield | [bytefield-svg](https://github.com/Deep-Symmetry/bytefield-svg) | bytefield |
 | vega-lite | [vega.github.io](https://vega.github.io/vega-lite/) | vega-lite |
+| vega | [vega.github.io](https://vega.github.io/vega/) | vega |
+| mermaid | [mermaid.js.org](https://mermaid.js.org/) | mermaid |
+| nomnoml | [nomnoml.com](https://nomnoml.com/) | nomnoml |
+| svgbob | [svgbob](https://github.com/ivanceras/svgbob) | svgbob |
+| pikchr | [pikchr.org](https://pikchr.org/) | pikchr |
+| gnuplot | [gnuplot.info](http://www.gnuplot.info/) | gnuplot |
+| mscgen | [mscgen](http://www.mcternan.me.uk/mscgen/) | mscgen |
+| dbml | [dbml.org](https://dbml.org/) | dbml |
+| tikz | [tikz.dev](https://tikz.dev/) | tikz |
 
 ### Special diagrams
 
@@ -52,7 +63,7 @@ Just search for 'Universal renderer' in the obsidian community plugins
 - `npm i` or `yarn` to install dependencies
 - `npm run build`
 - Copy over `main.js`, `styles.css`, `manifest.json` to your vault `<VaultFolder>/.obsidian/plugins/universal-renderer/`.
-- Install `graphviz, latex, asciidoc, plantuml, typst, etc...` via your system package manager (you can customize executable file locations in plugin settings)
+- Install `graphviz, latex, mermaid-cli, gnuplot, plantuml, typst, etc...` via your system package manager (you can customize executable file locations in plugin settings)
 
 ### Via BRAT
 
@@ -122,24 +133,32 @@ mix-mode:delta
 
 ## Presets
 
-By default there **2** explicit presets defined
+By default there is **1** explicit preset defined
 
 | Preset | Description |
 | - | - |
 | math-graph | Looks good on graphviz graphs with white nodes (sets `ellipse` and `text` fill mode to `keep-shade`) | 
-| default-tikz | Appends some boilerplate via `doc-start` and `doc-end` parameters (See `processor.ts` for preset parameters) |
 
 There are also presets which are applied by default
 
 | Preset | Description |
 | - | - |
 | default-latex | Applied to all `latex` graphs, adds some boilerplate start and end code |
+| default-tikz | Applied to all `tikz` graphs, adds standalone TikZ boilerplate |
 | default-plantuml | Applied to all `plantuml` graphs, adds `@startuml` and `@enduml` to the start and end of the code respectively | 
 | default-typst | Applied to all `typst` graphs, inverts shades for dark mode |
 | default-d2 | Applied to all `d2` graphs, inverts shades for dark mode and sets width to `100%` |
 | default-vega-lite | Applied to all `vega-lite` graphs, inverts shades for dark mode and sets width to `100%` |
 | default-wavedrom | Applied to all `wavedrom` graphs, inverts shades for dark mode |
 | default-bytefield | Applied to all `bytefield` graphs, inverts shades for dark mode |
+| default-mermaid | Applied to all `mermaid` graphs, inverts shades for dark mode and sets width to `100%` |
+| default-nomnoml | Applied to all `nomnoml` graphs, inverts shades for dark mode |
+| default-svgbob | Applied to all `svgbob` graphs, inverts shades for dark mode |
+| default-pikchr | Applied to all `pikchr` graphs, inverts shades for dark mode |
+| default-gnuplot | Applied to all `gnuplot` graphs, inverts shades for dark mode and sets width to `100%` |
+| default-mscgen | Applied to all `mscgen` graphs, inverts shades for dark mode |
+| default-vega | Applied to all `vega` graphs, inverts shades for dark mode and sets width to `100%` |
+| default-dbml | Applied to all `dbml` graphs, inverts shades for dark mode and sets width to `100%` |
 
 ### Defining a preset 
 

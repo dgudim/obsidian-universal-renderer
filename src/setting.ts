@@ -29,9 +29,19 @@ export type PluginSettings = {
 	seqdiagPath: string;
 	actdiagPath: string;
 	nwdiagPath: string;
+	packetdiagPath: string;
+	rackdiagPath: string;
 	wavedromPath: string;
 	bytefieldPath: string;
 	vegaLitePath: string;
+	vegaPath: string;
+	mermaidPath: string;
+	nomnomlPath: string;
+	svgbobPath: string;
+	pikchrPath: string;
+	gnuplotPath: string;
+	mscgenPath: string;
+	dbmlPath: string;
 };
 
 type ExecutableSetting = Exclude<keyof PluginSettings, 'colorPalette'>;
@@ -50,9 +60,19 @@ const EXECUTABLES: { key: ExecutableSetting; name: string }[] = [
 	{ key: 'seqdiagPath', name: 'Seqdiag' },
 	{ key: 'actdiagPath', name: 'Actdiag' },
 	{ key: 'nwdiagPath', name: 'Nwdiag' },
+	{ key: 'packetdiagPath', name: 'Packetdiag' },
+	{ key: 'rackdiagPath', name: 'Rackdiag' },
 	{ key: 'wavedromPath', name: 'WaveDrom' },
 	{ key: 'bytefieldPath', name: 'Bytefield' },
 	{ key: 'vegaLitePath', name: 'Vega-Lite' },
+	{ key: 'vegaPath', name: 'Vega' },
+	{ key: 'mermaidPath', name: 'Mermaid' },
+	{ key: 'nomnomlPath', name: 'Nomnoml' },
+	{ key: 'svgbobPath', name: 'Svgbob' },
+	{ key: 'pikchrPath', name: 'Pikchr' },
+	{ key: 'gnuplotPath', name: 'Gnuplot' },
+	{ key: 'mscgenPath', name: 'Mscgen' },
+	{ key: 'dbmlPath', name: 'DBML' },
 ];
 
 export const DEFAULT_SETTINGS: PluginSettings = {
@@ -70,9 +90,19 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 	seqdiagPath: 'seqdiag',
 	actdiagPath: 'actdiag',
 	nwdiagPath: 'nwdiag',
+	packetdiagPath: 'packetdiag',
+	rackdiagPath: 'rackdiag',
 	wavedromPath: 'wavedrom-cli',
 	bytefieldPath: 'bytefield-svg',
 	vegaLitePath: 'vl2svg',
+	vegaPath: 'vg2svg',
+	mermaidPath: 'mmdc',
+	nomnomlPath: 'nomnoml',
+	svgbobPath: 'svgbob',
+	pikchrPath: 'pikchr',
+	gnuplotPath: 'gnuplot',
+	mscgenPath: 'mscgen',
+	dbmlPath: 'dbml-renderer',
 };
 
 export class PluginSettingsTab extends PluginSettingTab {
