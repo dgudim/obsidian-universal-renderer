@@ -9,6 +9,7 @@
     "colorgen": "bun run colorgen.ts",
     "version": "node version-bump.mjs && git add manifest.json versions.json",
     "lint": "biome lint --write .",
+    "validate": "obsidian-plugin-validator --src src",
     "release": "node release.mjs"
   },
   "keywords": [],
@@ -16,11 +17,12 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^26.2.0",
+    "biome": "^0.3.3",
     "esbuild": "^0.28.2",
+    "obsidian-plugin-validator": "^1.0.6",
     "tslib": "2.6.2"
   },
   "dependencies": {
-    "obsidian": "^1.13.1",
-    "biome": "^0.3.3"
+    "obsidian": "^1.13.1"
   }
 }
