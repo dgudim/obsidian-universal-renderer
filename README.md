@@ -3,9 +3,6 @@
 <img src="https://github.com/dgudim/obsidian-universal-renderer/blob/master/assets/icon.png" height=150 id="icon"></img>
 <img src="https://github.com/dgudim/obsidian-universal-renderer/blob/master/assets/thumb.png" height=0 id="thumb"></img>
 
-> [!Warning]
-> I made this plugin for myself; it may not work properly on other systems.
-
 Render various diagrams and generate dynamic svgs in [Obsidian](https://obsidian.md). (Similar to [Obsidian kroki](https://github.com/gregzuro/obsidian-kroki))
 
 > [!Note]
