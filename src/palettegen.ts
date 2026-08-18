@@ -265,15 +265,21 @@ export async function genCSS(plugin: GraphvizPlugin, force = false): Promise<voi
         return;
     }
 
-    console.log(`Generating CSS for color palette: ${plugin.settings.colorPalette}`);
     return adapter.write(cssPath, buildPaletteCss(plugin.settings.colorPalette));
+}
+
+function firstMapValue<K, V>(map: Map<K, V>): V {
+    for (const value of map.values()) {
+        return value;
+    }
+    throw new Error('Palette map is empty');
 }
 
 export function buildPaletteCss(paletteName: ColorPalette): string {
 
-    const palette = colors.get(paletteName) ?? colors.values().next().value!;
-    const shadePalette = shades.get(paletteName) ?? shades.values().next().value!;
-    const gray = shadeGrays.get(paletteName) ?? shadeGrays.values().next().value!;
+    const palette = colors.get(paletteName) ?? firstMapValue(colors);
+    const shadePalette = shades.get(paletteName) ?? firstMapValue(shades);
+    const gray = shadeGrays.get(paletteName) ?? firstMapValue(shadeGrays);
 
     let globalDeclaration = ':root {\n';
     let asciidocStyles = '';

@@ -11,7 +11,6 @@ export default class GraphvizPlugin extends Plugin {
 	declare settings: PluginSettings;
 
 	async onload() {
-		console.debug('Load universal renderer plugin');
 		this.settings = await this.loadSettings();
 		this.addSettingTab(new PluginSettingsTab(this));
 		const processors = new Processors(this);
@@ -26,16 +25,16 @@ export default class GraphvizPlugin extends Plugin {
 		}
 	}
 
-	onunload() {
-		console.debug('Unload universal renderer plugin');
-	}
-
 	async onExternalSettingsChange() {
 		this.settings = await this.loadSettings();
 	}
 
 	async loadSettings(): Promise<PluginSettings> {
-		return { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
+		const saved: unknown = await this.loadData();
+		if (saved && typeof saved === 'object') {
+			return { ...DEFAULT_SETTINGS, ...(saved as Partial<PluginSettings>) };
+		}
+		return { ...DEFAULT_SETTINGS };
 	}
 
 	saveSettings(): Promise<void> {

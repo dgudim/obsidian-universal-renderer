@@ -510,17 +510,17 @@ export class Processors {
     }
 
     private spawnProcess(cmdPath: string, parameters: string[]): Promise<string> {
+        const command = `${cmdPath} ${parameters.join(' ')}`;
         return new Promise<string>((resolve, reject) => {
-            console.debug(`Starting external process ${cmdPath}, ${parameters}`);
             const process = spawn(cmdPath, parameters);
             let errData = '';
             process.stderr.on('data', (data) => { errData += data; });
-            process.on('error', (err: Error) => reject(new Error(`"${cmdPath} ${parameters}" failed, ${err}`)));
+            process.on('error', (err: Error) => reject(new Error(`"${command}" failed, ${err}`)));
             process.stdin.end();
 
             process.on('exit', (code) => {
                 if (code !== 0) {
-                    return reject(new Error(`"${cmdPath} ${parameters}" failed, error code: ${code}, stderr: ${errData}`));
+                    return reject(new Error(`"${command}" failed, error code: ${code}, stderr: ${errData}`));
                 }
                 resolve('ok');
             });
@@ -797,22 +797,33 @@ export class Processors {
         return this.writeRenderedFile(inputFile, outputFile, type, graphData.extras, graph_hash);
     }
 
+    private appendRenderedContent(el: HTMLElement, image: Document | string): void {
+        if (typeof image !== 'string') {
+            el.appendChild(el.doc.importNode(image.documentElement, true));
+            return;
+        }
+
+        const trimmed = image.trimStart();
+        const isSvg = trimmed.startsWith('<svg') || trimmed.startsWith('<?xml');
+        const parsed = new DOMParser().parseFromString(image, isSvg ? 'image/svg+xml' : 'text/html');
+        if (isSvg) {
+            el.appendChild(el.doc.importNode(parsed.documentElement, true));
+            return;
+        }
+        for (const child of Array.from(parsed.body.childNodes)) {
+            el.appendChild(el.doc.importNode(child, true));
+        }
+    }
+
     private async imageProcessor(source: string, el: HTMLElement, _: MarkdownPostProcessorContext, type: RenderType): Promise<void> {
         try {
-            console.debug(`Call image processor for ${type}`);
-
             const image = await this.renderImage(type, source.trim());
 
             el.empty();
             el.addClass('multi-graph');
-            if (typeof image === 'string') {
-                el.innerHTML = image;
-            } else {
-                el.appendChild(el.doc.importNode(image.documentElement, true));
-            }
-
+            this.appendRenderedContent(el, image);
         } catch (errMessage) {
-            console.error(`convert to image error: ${errMessage}`);
+            console.error(`convert to image error: ${String(errMessage)}`);
             const pre = el.createEl('pre');
             pre.createEl('code', { text: String(errMessage) });
         }
