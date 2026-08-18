@@ -2,7 +2,6 @@ import type { DataAdapter, MarkdownPostProcessorContext, MetadataCache } from 'o
 import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
-import { JSDOM } from 'jsdom';
 import { spawn } from 'child_process';
 import type GraphvizPlugin from './main';
 
@@ -326,16 +325,20 @@ function getTempDir(type: RenderType): string {
 }
 
 export class Processors {
-    pluginSettings: PluginSettings;
+    plugin: GraphvizPlugin;
     vaultAdapter: DataAdapter;
     metadataCache: MetadataCache;
 
     referenceGraphMap: Map<string, { sourcePath: string, extras: Map<string, string> }> = new Map();
 
     constructor(plugin: GraphvizPlugin) {
-        this.pluginSettings = plugin.settings;
+        this.plugin = plugin;
         this.vaultAdapter = plugin.app.vault.adapter;
         this.metadataCache = plugin.app.metadataCache;
+    }
+
+    private get pluginSettings(): PluginSettings {
+        return this.plugin.settings;
     }
 
     private getRendererParameters(type: RenderType, inputFile: string, outputFile: string): { execParams: { path: string, options: string[] }[], skipDynamicSvg: boolean } {
@@ -524,7 +527,7 @@ export class Processors {
         });
     }
 
-    private async writeRenderedFile(inputFile: string, outputFile: string, type: RenderType, conversionParams: SSMap, hash: string): Promise<JSDOM | string> {
+    private async writeRenderedFile(inputFile: string, outputFile: string, type: RenderType, conversionParams: SSMap, hash: string): Promise<Document | string> {
 
         const renderer = this.getRendererParameters(type, inputFile, outputFile);
 
@@ -592,12 +595,12 @@ export class Processors {
 
                 const params = (conversionParams.get(`${tagName}-${svgStyleTag}`) ?? '').split(',');
 
-                if (!styleTagValue && (inheritedParams.contains(svgStyleTag) || !(tagImplicitParamFlags.contains(svgStyleTag) || params.contains('implicit')))) {
+                if (!styleTagValue && (inheritedParams.includes(svgStyleTag) || !(tagImplicitParamFlags.includes(svgStyleTag) || params.includes('implicit')))) {
                     continue;
                 }
 
                 const tagColor = styleTagValue ? parseColor(styleTagValue) : 'black';
-                const rcolor = params.contains('skip') ? undefined : mapColor(tagColor);
+                const rcolor = params.includes('skip') ? undefined : mapColor(tagColor);
 
                 if (!rcolor?.colorVar) {
                     // skip it, use the original value
@@ -606,7 +609,7 @@ export class Processors {
                     continue;
                 }
 
-                const localInvert = params.contains(`invert-${rcolor.type}`) || params.contains('invert-all');
+                const localInvert = params.includes(`invert-${rcolor.type}`) || params.includes('invert-all');
                 const globalInvert = rcolor.type === 'color' ? globalColorInvert : globalShadeInvert;
 
                 if (globalInvert !== localInvert) {
@@ -668,24 +671,24 @@ export class Processors {
         }
     }
 
-    private svgToDom(svgSource: string | JSDOM): JSDOM {
-        if(svgSource instanceof JSDOM) {
+    private svgToDom(svgSource: string | Document): Document {
+        if (svgSource instanceof Document) {
             return svgSource;
         }
-        return new JSDOM(svgSource, { contentType: 'image/svg+xml' });
+        return new DOMParser().parseFromString(svgSource, 'image/svg+xml');
     }
 
-    private domToString(svgSource: string | JSDOM): string {
-        if(svgSource instanceof JSDOM) {
-            return svgSource.serialize();
+    private domToString(svgSource: string | Document): string {
+        if (svgSource instanceof Document) {
+            return new XMLSerializer().serializeToString(svgSource);
         }
         return svgSource;
     }
 
-    private makeDynamicSvg(svgSource: string, conversionParams: SSMap, hash: string): JSDOM {
+    private makeDynamicSvg(svgSource: string, conversionParams: SSMap, hash: string): Document {
         // replace colors with dynamic colors
         const DOM = this.svgToDom(svgSource);
-        const svg = DOM.window.document.querySelector('svg');
+        const svg = DOM.querySelector('svg');
 
         if (!svg) {
             throw new Error('failed parsing svg source');
@@ -755,7 +758,7 @@ export class Processors {
         };
     }
 
-    private async renderImage(type: RenderType, source: string): Promise<JSDOM | string> {
+    private async renderImage(type: RenderType, source: string): Promise<Document | string> {
 
         if (type === 'refgraph') {
             const graphData = this.referenceGraphMap.get(source.trim());
@@ -800,16 +803,18 @@ export class Processors {
 
             const image = await this.renderImage(type, source.trim());
 
+            el.empty();
             el.addClass('multi-graph');
-            el.innerHTML = this.domToString(image);
+            if (typeof image === 'string') {
+                el.innerHTML = image;
+            } else {
+                el.appendChild(el.doc.importNode(image.documentElement, true));
+            }
 
         } catch (errMessage) {
             console.error(`convert to image error: ${errMessage}`);
-            const pre = document.createElement('pre');
-            const code = document.createElement('code');
-            code.setText(String(errMessage));
-            pre.appendChild(code);
-            el.appendChild(pre);
+            const pre = el.createEl('pre');
+            pre.createEl('code', { text: String(errMessage) });
         }
     }
 }

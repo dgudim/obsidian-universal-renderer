@@ -182,7 +182,7 @@ export function isDefined(val: unknown): boolean {
 }
 
 export function invertColorName(color: string) {
-	if (color.contains('light')) {
+	if (color.includes('light')) {
 		return color.replace('light', 'dark');
 	}
 

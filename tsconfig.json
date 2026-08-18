@@ -9,6 +9,9 @@
       "DOM.Iterable",
       "ES2022"
     ],
+    "types": [
+      "node"
+    ],
     "allowJs": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,

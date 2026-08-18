@@ -18,18 +18,20 @@ export default class GraphvizPlugin extends Plugin {
 
 		await genCSS(this);
 
-		this.app.workspace.onLayoutReady(() => {
-			for (const type of renderTypes) {
-				this.registerMarkdownCodeBlockProcessor(
-					type,
-					processors.getProcessorForType(type).bind(processors),
-				);
-			}
-		});
+		for (const type of renderTypes) {
+			this.registerMarkdownCodeBlockProcessor(
+				type,
+				processors.getProcessorForType(type).bind(processors),
+			);
+		}
 	}
 
 	onunload() {
 		console.debug('Unload universal renderer plugin');
+	}
+
+	async onExternalSettingsChange() {
+		this.settings = await this.loadSettings();
 	}
 
 	async loadSettings(): Promise<PluginSettings> {

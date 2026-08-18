@@ -1,9 +1,7 @@
-import { type RgbColor, hexToRgb, invertColorName } from './utils.js';
-import { promises as fsp } from 'fs';
-import * as fs from 'fs';
-import type { ColorPalette } from './setting';
+import { normalizePath } from 'obsidian';
 import type GraphvizPlugin from './main';
-import type { FileSystemAdapter } from 'obsidian';
+import type { ColorPalette } from './setting';
+import { type RgbColor, hexToRgb, invertColorName } from './utils';
 
 type ColorType = 'dark' | '' | 'light';
 type ColorName = 'red' | 'green' | 'yellow' | 'blue' | 'purple' | 'cyan' | 'orange'
@@ -260,26 +258,15 @@ function getColorMapping(target: string, declaration: string): string {
 // TODO: Add ascidoc/mjx coloring documentation to readme
 
 export async function genCSS(plugin: GraphvizPlugin, force = false): Promise<void> {
+    const cssPath = normalizePath(`${plugin.app.vault.configDir}/plugins/${plugin.manifest.id}/styles.css`);
+    const adapter = plugin.app.vault.adapter;
 
-    let cssPath = '';
-    const settings = plugin.settings;
-
-    const adapter = plugin.app.vault.adapter as FileSystemAdapter;
-    if (typeof adapter.getBasePath === 'function') {
-        cssPath = `${adapter.getBasePath()}/${
-            plugin.app.vault.configDir
-        }/plugins/${plugin.manifest.id}/styles.css`;
-    } else {
-        throw TypeError('plugin.app.vault.adapter is not a FileSystemAdapter');
-    }
-
-    if (!force && fs.existsSync(cssPath)) {
+    if (!force && await adapter.exists(cssPath)) {
         return;
     }
 
-    console.log(`Generating CSS for color palette: ${settings.colorPalette}`)
-
-    return fsp.writeFile(cssPath, buildPaletteCss(settings.colorPalette));
+    console.log(`Generating CSS for color palette: ${plugin.settings.colorPalette}`);
+    return adapter.write(cssPath, buildPaletteCss(plugin.settings.colorPalette));
 }
 
 export function buildPaletteCss(paletteName: ColorPalette): string {
