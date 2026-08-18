@@ -1,7 +1,7 @@
 {
 	"id": "universal-renderer",
 	"name": "Universal renderer",
-	"version": "1.1.0",
+	"version": "1.1.5",
 	"minAppVersion": "1.13.0",
 	"description": "Render many different diagrams natively.",
 	"author": "Kloud",
